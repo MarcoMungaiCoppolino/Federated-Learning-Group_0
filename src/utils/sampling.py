@@ -45,6 +45,7 @@ def cifar_iid(dataset, num_clients):
 
 
 def cifar_noniid(dataset, num_clients, Nc):
+
     def class_clients_sharding(num_classes, Nc):
         class_clients = {key: set() for key in range(num_classes)}
         first_clients = list(range(num_classes))
@@ -115,3 +116,6 @@ def cifar_noniid(dataset, num_clients, Nc):
     valset = Subset(dataset, val_shards_indices)
     
     return client_subsets, valset
+
+
+__all__ = ['cifar_iid', 'cifar_noniid']
