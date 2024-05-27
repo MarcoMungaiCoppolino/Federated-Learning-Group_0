@@ -3,7 +3,8 @@ from utils.options import *
 # from utils.get_functions import *
 
 def main_runner():
-        args = args_parser()
+    args = args_parser()
+            
     # Get user input for parameters
     iid, participation, Nc, J = get_user_input()
     
@@ -12,7 +13,9 @@ def main_runner():
     args.participation = participation
     args.Nc = Nc
     args.local_ep = J
-    
+
+    exp_details(args)  
+        
     if args.gpu:
         torch.cuda.set_device(args.gpu)
     device = 'cuda' if args.gpu else 'cpu'
