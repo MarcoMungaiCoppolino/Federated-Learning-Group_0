@@ -99,5 +99,7 @@ def main_runner():
     print(f' \n Results after {args.epochs} global rounds of training:')
     print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+
+
 if __name__ == '__main__':
     main_runner()
