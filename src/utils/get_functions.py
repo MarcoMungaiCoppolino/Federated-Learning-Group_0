@@ -47,9 +47,9 @@ def get_user_input():
 
     # Modify participation parameter
     while True:
-        partecipation = input("Enter Participation parameter (1 for Uniform, 0 for Skewed): ")
-        if partecipation in ['1', '0']:
-            partecipation = int(partecipation)
+        participation = input("Enter Participation parameter (1 for Uniform, 0 for Skewed): ")
+        if participation in ['1', '0']:
+            participation = int(participation)
             break
         else:
             print("Invalid input. Please enter 1 or 0.")
@@ -78,7 +78,7 @@ def get_user_input():
             else:
                 print("Invalid input. Please enter 4, 8, or 16.")
 
-    return iid, partecipation, Nc, J
+    return iid, participation, Nc, J
 
 
 __all__ = ["get_dataset", "get_user_input"]
