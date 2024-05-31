@@ -342,19 +342,16 @@ class LocalUpdate(object):
 
     def train(self, net):
         net.train()
-        # train and update
         optimizer = torch.optim.SGD(net.parameters(), lr=self.lr, momentum=self.args.momentum)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=self.lr_decay)
 
         epoch_loss = []
-        for iter in range(self.args.local_ep):
+        for iter in tqdm(range(self.args.local_ep), desc="Epochs"):
             batch_loss = []
-            for batch_idx, (images, labels) in enumerate(self.ldr_train):
+            for batch_idx, (images, labels) in enumerate(tqdm(self.ldr_train, desc="Batches", leave=False)):
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
                 net.zero_grad()
                 log_probs = net(images)
-                # print(list(log_probs.size()))
-                # print(labels)
                 loss = self.loss_func(log_probs, labels)
                 loss.backward()
                 optimizer.step()
@@ -367,10 +364,6 @@ class LocalUpdate(object):
             epoch_loss.append(sum(batch_loss)/len(batch_loss))
         self.lr = scheduler.get_last_lr()[0]
         return net.state_dict(), sum(epoch_loss) / len(epoch_loss)
-
-
-
-  #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
