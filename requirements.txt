@@ -1,7 +1,2 @@
-numpy
-pandas
-torch
-matplotlib
-torchvision
-scikit-learn
-scipy
+wandb
+tqdm
