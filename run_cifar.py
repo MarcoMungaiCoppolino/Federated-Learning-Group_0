@@ -53,7 +53,7 @@ def args_parser():
     # other arguments
     parser.add_argument('--dataset', type=str, default='mnist', help="name of dataset")
     parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
-    parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
+    parser.add_argument('--num_classes', type=int, default=100, help="number of classes")
     parser.add_argument('--num_channels', type=int, default=3, help="number of channels of imges")
     parser.add_argument('--gpu', type=int, default=0, help="GPU ID, -1 for CPU")
     parser.add_argument('--stopping_rounds', type=int, default=10, help='rounds of early stopping')
@@ -132,16 +132,12 @@ def cifar_noniid(dataset, num_users):
 
 if args.dataset == 'cifar':
     #trans_cifar = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    trans_cifar_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-    trans_cifar_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
+    trans_cifar_train = transforms.Compose(
+            [transforms.ToTensor(),
+             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    trans_cifar_test = transforms.Compose(
+            [transforms.ToTensor(),
+             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     dataset_train = datasets.CIFAR100(args.cifar_dataset, train=True, download=True, transform=trans_cifar_train)
     dataset_test = datasets.CIFAR100(args.cifar_dataset, train=False, download=True, transform=trans_cifar_test)
     if args.iid:
@@ -154,28 +150,41 @@ from torch import nn
 import torch.nn.functional as F
 
 class CIFARLeNet(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self):
         super(CIFARLeNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=2)
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=1, padding=2)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = nn.Linear(64 * 8 * 8, 384)  # Assuming input size is 32x32
-        self.fc2 = nn.Linear(384, 192)
-        self.fc3 = nn.Linear(192, num_classes)
-    
+        self.conv_layers = nn.Sequential(
+            # Conv Layer 1
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout(p=0.5),  # Dropout layer after first Max Pooling
+            # Conv Layer 2
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=1, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout(p=0.5)  # Dropout layer after second Max Pooling
+        )
+
+        self.fc_layers = nn.Sequential(
+            # FC Layer 1
+            nn.Linear(64*8*8, 384),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),  # Dropout layer after first FC layer
+            # FC Layer 2
+            nn.Linear(384, 192),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),  # Dropout layer after second FC layer
+            # Output Layer
+            nn.Linear(192, 100)
+        )
+
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = self.pool1(x)
-        x = F.relu(self.conv2(x))
-        x = self.pool2(x)
-        x = x.view(-1, 64 * 8 * 8)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.conv_layers(x)
+        x = x.view(x.size(0), -1)  # Flatten the tensor
+        x = self.fc_layers(x)
         return x
 
-net_glob = CIFARLeNet(args=args).to(args.device)
+net_glob = CIFARLeNet().to(args.device)
 print(net_glob)
 
 #training
