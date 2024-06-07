@@ -17,20 +17,22 @@ def get_dataset(args):
         train_dataset = datasets.CIFAR100(data_dir, train=True, download=True,
                                        transform=apply_transform)
 
+        train_dataset, val_dataset = stratified_split(train_dataset)
+
         test_dataset = datasets.CIFAR100(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups_train, user_groups_val, user_groups_test = cifar_iid(train_dataset, args.num_users)
+            user_groups_train = cifar_iid(train_dataset, args.num_users)
         else:
-            user_groups_train, user_groups_val, user_groups_test = cifar_noniid(train_dataset, args.num_users, args.Nc)
+            user_groups_train = cifar_noniid(train_dataset, args.num_users, args.Nc)
 
     elif args.dataset == 'shakespears':
         print("ancora da finire")
 
-    return train_dataset, test_dataset, user_groups_train, user_groups_val, user_groups_test
+    return train_dataset, val_dataset, test_dataset, user_groups_train
 
 
 def get_user_input():
