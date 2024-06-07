@@ -43,7 +43,7 @@ def args_parser():
     parser.add_argument('--max_pool', type=str, default='True',
                         help="Whether use max pooling rather than \
                         strided convolutions")
-
+    parser.add_argument('--checkpoint_resume', type=int, default=0, help='resume from checkpoint, 0 for False, 1 for True')
     # other arguments
     parser.add_argument('--dataset', type=str, default='cifar', help="name \
                         of dataset")

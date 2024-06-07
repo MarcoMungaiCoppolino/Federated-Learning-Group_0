@@ -66,7 +66,7 @@ if __name__ == '__main__':
             # Ask the user if they want to continue from the last checkpoint or start again
             
 
-            if args.checkpoint_path:
+            if args.checkpoint_resume == 1:
                 args.iid, args.partecipation, args.Nc, args.local_ep = last_user_input
                 global_model = CIFARLeNet(args=args) if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
                 global_model.to(device)
