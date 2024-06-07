@@ -5,25 +5,25 @@ import torch.nn.functional as F
 class ShakespeareLSTM(nn.Module):
     def __init__(self):
         super(ShakespeareLSTM, self).__init__()
-        self.embed = nn.Embedding(80, 8)
-        self.lstm = nn.LSTM(8, 256, 2, batch_first=True)
-        # self.h0 = torch.zeros(2, batch_size, 256).requires_grad_()
-        self.drop = nn.Dropout()
-        self.out = nn.Linear(256, 80)
+
+        embedding_dim = 8
+        hidden_size = 100
+        num_LSTM = 2
+        input_length = 80
+        self.n_cls = 80
+
+        self.embedding = nn.Embedding(input_length, embedding_dim)
+        self.stacked_LSTM = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, num_layers=num_LSTM)
+        self.fc = nn.Linear(hidden_size, self.n_cls)
 
     def forward(self, x):
-        x = self.embed(x)
-        # if self.h0.size(1) == x.size(0):
-        #     self.h0.data.zero_()
-        #     # self.c0.data.zero_()
-        # else:
-        #     # resize hidden vars
-        #     device = next(self.parameters()).device
-        #     self.h0 = torch.zeros(2, x.size(0), 256).to(device).requires_grad_()
-        x, hidden = self.lstm(x)
-        x = self.drop(x)
-        # x = x.contiguous().view(-1, 256)
-        # x = x.contiguous().view(-1, 256)
-        return self.out(x[:, -1, :])
+        x = self.embedding(x)
+        x = x.permute(1, 0, 2) # lstm accepts in this style
+        output, (h_, c_) = self.stacked_LSTM(x)
+        # Choose last hidden layer
+        last_hidden = output[-1,:,:]
+        x = self.fc(last_hidden)
+
+        return x
 
 __all__ = ["ShakespeareLSTM"]

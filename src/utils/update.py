@@ -36,7 +36,7 @@ class LocalUpdate(object):
         optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, weight_decay=4e-4)
 
         rounds_counter = 0
-        rounds = self.args.local_rounds  # Define the number of rounds
+        rounds = self.args.local_ep  # Define the number of rounds
         while rounds_counter < rounds:
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 if rounds_counter >= rounds:

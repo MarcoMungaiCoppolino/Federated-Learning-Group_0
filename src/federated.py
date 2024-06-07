@@ -1,15 +1,15 @@
-from .utils import *
-from .utils.options import *
-from .utils.get_functions import *
-from .utils.update import *
-from .utils.sampling import *
-from .utils.exp_details import *
-from .utils.average_weights import *
+from utils import *
+from utils.options import *
+from utils.get_functions import *
+from utils.update import *
+from utils.sampling import *
+from utils.exp_details import *
+from utils.average_weights import *
 import os
 import copy
 import numpy as np
 from tqdm import tqdm
-from .models import *
+from models import *
 import wandb
 import glob
 import torch
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     #todo: add logger
     if args.wandb_key:
         wandb.login(key=args.wandb_key)
-        wandb.init(project=args.wandb_project, name=args.wandb_run_name, entity='developer-sidani')
+        wandb.init(project=args.wandb_project, name=args.wandb_run_name, entity=args.wandb_username)
         wandb.config.update(args)
     else:
         print("No wandb key provided")
@@ -28,14 +28,23 @@ if __name__ == '__main__':
     if args.gpu:
         torch.cuda.set_device(args.gpu)
     device = 'cuda' if args.gpu else 'cpu'
+    
     train_set, val_set, test_set, user_groups_train = get_dataset(args)
     
     if args.dataset == 'cifar':
 
-        if args.iid == 1:
-            checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.local_ep}_epoch_*.pth.tar"
-        elif args.iid == 0:
-            checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
+        if args.iid:
+            if args.partecipation:
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_epoch_*.pth.tar"
+            else:
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.gamma}_epoch_*.pth.tar"
+
+        else:
+            if args.partecipation:
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
+
+            else:
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.gamma}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
     else:
         checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
     # Find the latest checkpoint that matches the pattern
@@ -68,21 +77,21 @@ if __name__ == '__main__':
 
             if args.checkpoint_resume == 1:
                 args.iid, args.partecipation, args.Nc, args.local_ep = last_user_input
-                global_model = CIFARLeNet(args=args) if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
+                global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
                 global_model.to(device)
                 global_model.load_state_dict(checkpoint['model_state_dict'])
                 print(f"Resuming training from epoch {start_epoch}")
             else:
                 start_epoch = 0
-                global_model = CIFARLeNet(args=args)
+                global_model = CIFARLeNet()
                 global_model.to(device)
         else:
             start_epoch = 0
-            global_model = CIFARLeNet(args=args) if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
+            global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
             global_model.to(device)
     else:
         start_epoch = 0
-        global_model = CIFARLeNet(args=args) if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
+        global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
         global_model.to(device)
     
     global_model.train()

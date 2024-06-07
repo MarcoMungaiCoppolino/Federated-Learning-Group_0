@@ -6,8 +6,11 @@ def args_parser():
     parser = argparse.ArgumentParser()
     ## Wandb parameters
     parser.add_argument('--wandb_key', type=str, default='', help='wandb key')
+    parser.add_argument('--wandb_username', type=str, default='', help='wandb userna,,e')
     parser.add_argument('--wandb_project', type=str, default='charBert', help='wandb project')
     parser.add_argument('--wandb_run_name', type=str, default='charBert', help='wandb run name')
+    parser.add_argument('--data_dir', type=str, default='', help='data directory')
+
     # federated arguments (Notation for the arguments followed from paper)
     parser.add_argument('--epochs', type=int, default=2000,
                         help="number of rounds of training")
@@ -67,6 +70,7 @@ def args_parser():
                         help='how often the train_accuracy is computed, and \
                         how often a new checkpoint is saved')
     parser.add_argument('--verbose', type=int, default=0, help='verbose')
+    parser.add_argument('--gamma', type=int, default=0.1, help='gamma')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
 
     # If running in a notebook, ignore the first argument which is the script name
