@@ -7,20 +7,26 @@ def get_dataset(args):
     the keys are the user index and the values are the corresponding data for
     each of those users.
     """
-
+    data_dir = args.data_dir
     if args.dataset == 'cifar':
-        data_dir = './data'
-        apply_transform = transforms.Compose(
-            [transforms.ToTensor(),
-             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+        ])
 
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+        ])
         train_dataset = datasets.CIFAR100(data_dir, train=True, download=True,
-                                       transform=apply_transform)
+                                       transform=transform_train)
 
         train_dataset, val_dataset = stratified_split(train_dataset)
 
         test_dataset = datasets.CIFAR100(data_dir, train=False, download=True,
-                                      transform=apply_transform)
+                                      transform=transform_test)
 
         # sample training data amongst users
         if args.iid:
