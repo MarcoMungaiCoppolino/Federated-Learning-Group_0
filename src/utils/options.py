@@ -58,8 +58,8 @@ def args_parser():
                         of optimizer")
     parser.add_argument('--iid', type=int, default=0,
                         help='Default set to IID. Set to 0 for non-IID.')
-    parser.add_argument('--partecipation', type=int, default=1,
-                        help='Default set to Uniform Partecipation. Set to 0 for Skewed')
+    parser.add_argument('--participation, type=int, default=1,
+                        help='Default set to Uniform Participation. Set to 0 for Skewed')
     parser.add_argument('--backup', type=int, default=500,
                         help='How often an old backup should be preserved')
     parser.add_argument('--checkpoint_path', type=str, default=".",
