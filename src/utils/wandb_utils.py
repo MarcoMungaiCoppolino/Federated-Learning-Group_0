@@ -12,9 +12,9 @@ class WandbLogger:
     def watch(self, model):
         if self.key:
             wandb.watch(model)
-    def log(self, **kwargs):
+    def log(self, log):
         if self.key:
-            wandb.log(kwargs)
+            wandb.log(log)
 
     def save(self, filename):
         if self.key:

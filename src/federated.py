@@ -29,7 +29,30 @@ if __name__ == '__main__':
     logger.debug(f"Using {device} device")
     
     train_set, val_set, test_set, user_groups_train = get_dataset(args)
-    logger.info(args)
+    logger.info("######################")
+    logger.info("### Configuration ####")
+    logger.info("######################")
+    logger.info("Dataset: {}".format(args.dataset))
+    logger.info("Data Directory: {}".format(args.data_dir))
+    logger.info("Checkpoint Directory: {}".format(args.checkpoint_path))
+    logger.info(f"Mehod:{'IID' if args.iid else 'Non-IID'} Participation:{'Uniform' if args.participation else 'Skewed'}")
+    logger.info("Number of users: {}".format(args.num_users))
+    logger.info("Number of classes: {}".format(args.num_classes))
+    logger.info("Number of global epochs: {}".format(args.epochs))
+    logger.info("Number of local epochs: {}".format(args.local_ep))
+    logger.info("Number of local batches: {}".format(args.local_bs))
+    logger.info("Learning rate: {}".format(args.lr))
+    if not args.participation:
+        logger.info("Momentum: {}".format(args.momentum))
+
+    if args.wandb_key:
+        logger.info("Using wandb")
+        logger.info(f"Project: {args.wandb_project}")
+        logger.info(f"Run name: {args.wandb_run_name}")
+        logger.info(f"Running can be found at: https://wandb.ai/{args.wandb_username}/{args.wandb_project}/runs/{args.wandb_run_name}")
+    logger.info("######################")
+    logger.info("######################")
+
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
