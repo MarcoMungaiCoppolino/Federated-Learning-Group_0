@@ -22,17 +22,17 @@ if __name__ == '__main__':
     logger = Logger("LOG", logfile=args.logfile).logger
 
     if args.gpu:
-        d = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-        logger.debug(f"Using {d} device")
-        torch.cuda.set_device(d)
+        d = f"cuda:{args.gpu}" if args.gpu is not None else ""
+        if torch.cuda.is_available():
+            torch.cuda.set_device(d)
     device = 'cuda' if args.gpu else 'cpu'
+    logger.debug(f"Using {device} device")
     
     train_set, val_set, test_set, user_groups_train = get_dataset(args)
-    logger.info(f'')
     logger.info(args)
-    if args.gpus is not None:
-        logger.debug('Using only these GPUs: {}'.format(args.gpus))
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
+    if args.gpu is not None:
+        logger.debug('Using only these GPUs: {}'.format(args.gpu))
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.dataset == 'cifar':
 
         if args.iid:
@@ -90,11 +90,13 @@ if __name__ == '__main__':
         else:
             start_epoch = 0
             global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
-            global_model.to(device)
+            if torch.cuda.torch.cuda.is_available():
+                global_model.to(device)
     else:
         start_epoch = 0
         global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
-        global_model.to(device)
+        if torch.cuda.torch.cuda.is_available():
+            global_model.to(device)
     
     global_model.train()
     logger.info(global_model)
