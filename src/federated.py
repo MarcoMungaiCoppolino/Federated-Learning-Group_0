@@ -20,7 +20,6 @@ if __name__ == '__main__':
     args = args_parser()
     wandb_logger = WandbLogger(args)
     logger = Logger("LOG", logfile=args.logfile).logger
-
     if args.gpu:
         d = f"cuda:{args.gpu}" if args.gpu is not None else ""
         if torch.cuda.is_available():
@@ -49,7 +48,7 @@ if __name__ == '__main__':
         logger.info("Using wandb")
         logger.info(f"Project: {args.wandb_project}")
         logger.info(f"Run name: {args.wandb_run_name}")
-        logger.info(f"Running can be found at: https://wandb.ai/{args.wandb_username}/{args.wandb_project}/runs/{args.wandb_run_name}")
+        logger.info(f"Running can be found at: {wandb_logger.get_execution_link()}")
     logger.info("######################")
     logger.info("######################")
 
