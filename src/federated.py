@@ -5,7 +5,7 @@ from utils.update import *
 from utils.sampling import *
 from utils.exp_details import *
 from utils.average_weights import *
-from utils.logger import logger
+from utils.logger import Logger
 import os
 import copy
 import numpy as np
@@ -19,6 +19,7 @@ from utils.wandb_utils import *
 if __name__ == '__main__':
     args = args_parser()
     wandb_logger = WandbLogger(args)
+    logger = Logger("LOG", logfile=args.logfile).logger
 
     if args.gpu:
         d = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"

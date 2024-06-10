@@ -9,6 +9,7 @@ def args_parser():
     parser.add_argument('--wandb_username', type=str, default='', help='wandb userna,,e')
     parser.add_argument('--wandb_project', type=str, default='charBert', help='wandb project')
     parser.add_argument('--wandb_run_name', type=str, default='charBert', help='wandb run name')
+    parser.add_argument('logfile', type=str, default='LOG', help='log file name')
     parser.add_argument('--data_dir', type=str, default='', help='data directory')
 
     # federated arguments (Notation for the arguments followed from paper)
