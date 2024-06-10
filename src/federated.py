@@ -11,19 +11,14 @@ import numpy as np
 from tqdm import tqdm
 from models import *
 import wandb
-import glob
+import glob 
 import torch
+from utils.wandb_utils import *
 
 
 if __name__ == '__main__':
     args = args_parser()
-    #todo: add logger
-    if args.wandb_key:
-        wandb.login(key=args.wandb_key)
-        wandb.init(project=args.wandb_project, name=args.wandb_run_name, entity=args.wandb_username)
-        wandb.config.update(args)
-    else:
-        print("No wandb key provided")
+    wandb_logger = WandbLogger(args)
 
     if args.gpu:
         d = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
@@ -99,8 +94,8 @@ if __name__ == '__main__':
     global_model.train()
     print(global_model, "\n")
 
-    wandb.config.update(args)
-    wandb.watch(global_model)
+    
+    wandb_logger.watch(global_model)
     # Copy weights
     global_weights = global_model.state_dict()
 
@@ -151,7 +146,7 @@ if __name__ == '__main__':
                 # Print global training loss after every 'print_every' rounds
                 print(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 print(f'Training Loss : {np.mean(np.array(train_loss))}')
-                wandb.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
+                wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
                 print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
             if (epoch+1) % print_every == 0:
