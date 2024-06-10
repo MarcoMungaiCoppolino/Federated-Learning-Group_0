@@ -1,6 +1,6 @@
 from utils import *
 from utils.options import *
-from utils.get_functions import *
+from utils.data_utils import *
 from utils.update import *
 from utils.sampling import *
 from utils.exp_details import *
@@ -10,7 +10,6 @@ import copy
 import numpy as np
 from tqdm import tqdm
 from models import *
-import wandb
 import glob 
 import torch
 from utils.wandb_utils import *
