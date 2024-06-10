@@ -5,6 +5,7 @@ from utils.update import *
 from utils.sampling import *
 from utils.exp_details import *
 from utils.average_weights import *
+from utils.logger import logger
 import os
 import copy
 import numpy as np
@@ -21,12 +22,16 @@ if __name__ == '__main__':
 
     if args.gpu:
         d = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-        print(f"Using {d} device")
+        logger.debug(f"Using {d} device")
         torch.cuda.set_device(d)
     device = 'cuda' if args.gpu else 'cpu'
     
     train_set, val_set, test_set, user_groups_train = get_dataset(args)
-    
+    logger.info(f'')
+    logger.info(args)
+    if args.gpus is not None:
+        logger.debug('Using only these GPUs: {}'.format(args.gpus))
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
     if args.dataset == 'cifar':
 
         if args.iid:
@@ -61,7 +66,7 @@ if __name__ == '__main__':
             else:
                 user_input_string = f"IID: {last_user_input[0]}, Participation: {participation_status}, J: {last_user_input[3]}"
 
-            print(f"\nA saving checkpoint with these parameters exists:\n"
+            logger.info(f"\nA saving checkpoint with these parameters exists:\n"
                 f"Last checkpoint details:\n"
                 f"Epoch reached: {start_epoch}\n"
                 f"Train accuracy: {100*last_train_accuracy[-1]}%\n"
@@ -76,7 +81,7 @@ if __name__ == '__main__':
                 global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
                 global_model.to(device)
                 global_model.load_state_dict(checkpoint['model_state_dict'])
-                print(f"Resuming training from epoch {start_epoch}")
+                logger.info(f"Resuming training from epoch {start_epoch}")
             else:
                 start_epoch = 0
                 global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
@@ -91,7 +96,7 @@ if __name__ == '__main__':
         global_model.to(device)
     
     global_model.train()
-    print(global_model, "\n")
+    logger.info(global_model)
 
     
     wandb_logger.watch(global_model)
@@ -106,7 +111,7 @@ if __name__ == '__main__':
     with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
         for epoch in range(start_epoch, args.epochs):
             local_weights, local_losses = [], []
-            print(f'\n\n| Global Training Round : {epoch+1} |')
+            logger.info(f'\n\n| Global Training Round : {epoch+1} |')
 
             global_model.train()
             num_selected_clients = max(int(args.frac * args.num_users), 1)
@@ -143,10 +148,10 @@ if __name__ == '__main__':
                 acc, loss = local_model.inference(model=global_model)
                 train_accuracy.append(acc)
                 # Print global training loss after every 'print_every' rounds
-                print(f' \nAvg Training Stats after {epoch+1} global rounds:')
-                print(f'Training Loss : {np.mean(np.array(train_loss))}')
+                logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
+                logger.info(f'Training Loss : {np.mean(np.array(train_loss))}')
                 wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
-                print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
+                logger.info('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
             if (epoch+1) % print_every == 0:
                 # Save checkpoint
@@ -183,6 +188,6 @@ if __name__ == '__main__':
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_set)
 
-    print(f' \n Results after {args.epochs} global rounds of training:')
-    print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-    print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    logger.info(f' \n Results after {args.epochs} global rounds of training:')
+    logger.info("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
+    logger.info("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
