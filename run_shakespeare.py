@@ -1,82 +1,26 @@
-import random
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import copy
-import numpy as np
-from torchvision import datasets, transforms
-import torch
+!pip install wandb
+!git clone https://github.com/TalwalkarLab/leaf.git
+!cd leaf/data/shakespeare && ./preprocess.sh -s iid --iu 0.089 --sf 1.0 -k 2000 -t sample -tf 0.8
 import os
-from tqdm import tqdm
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+from scipy import io
+import torch
+from torch.utils import data
+import torchvision.transforms as transforms
+import torch.nn as nn
+import torch.nn.functional as F
+import copy
+import json
+import numpy as np
+import os
+from collections import defaultdict
 import wandb
-
-import argparse
-
+import torchvision.models as models
 
 
 
-def args_parser():
-    parser = argparse.ArgumentParser()
-    # location argument
-    parser.add_argument('--shakespeare_train_path', type=str, default='', help="training path for shakespeare dataset")
-    parser.add_argument('--shakespeare_test_path', type=str, default='', help="test path for shakespeare dataset")
-
-    # federated arguments
-    parser.add_argument('--epochs', type=int, default=5, help="rounds of training")
-    parser.add_argument('--num_users', type=int, default=100, help="number of users: K")
-    parser.add_argument('--frac', type=float, default=0.1, help="the fraction of clients: C")
-    parser.add_argument('--local_ep', type=int, default=4, help="the number of local epochs: E")
-    parser.add_argument('--local_bs', type=int, default=100, help="local batch size: B")
-    parser.add_argument('--bs', type=int, default=128, help="test batch size")
-    parser.add_argument('--lr', type=float, default=0.01, help="learning rate")
-    parser.add_argument('--lr_decay', type=float, default=0.995, help="learning rate decay each round")
-    parser.add_argument('--split', type=str, default='user', help="train-test split type, user or sample")
-
-    # model arguments
-    parser.add_argument('--model', type=str, default='lstm', help='model name')
-    parser.add_argument('--input_size', type=int, default=80, help='model input size')
-    parser.add_argument('--embedding_size', type=int, default=8, help='model embedding size')
-    parser.add_argument('--hidden_size', type=int, default=256, help='model hidden size')
-    parser.add_argument('--num_layers', type=int, default=2, help='model number of layers')
-    parser.add_argument('--output_size', type=int, default=80, help='model output size')
-
-    parser.add_argument('--kernel_num', type=int, default=9, help='number of each kind of kernel')
-    parser.add_argument('--kernel_sizes', type=str, default='3,4,5',
-                        help='comma-separated kernel size to use for convolution')
-    parser.add_argument('--norm', type=str, default='batch_norm', help="batch_norm, layer_norm, or None")
-    parser.add_argument('--num_filters', type=int, default=32, help="number of filters for conv nets")
-    parser.add_argument('--max_pool', type=str, default='True',
-                        help="Whether use max pooling rather than strided convolutions")
-
-    # other arguments
-    parser.add_argument('--dataset', type=str, default='mnist', help="name of dataset")
-    parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
-    parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
-    parser.add_argument('--num_channels', type=int, default=3, help="number of channels of imges")
-    parser.add_argument('--gpu', type=int, default=0, help="GPU ID, -1 for CPU")
-    parser.add_argument('--stopping_rounds', type=int, default=10, help='rounds of early stopping')
-    parser.add_argument('--verbose', action='store_true', help='verbose print')
-    parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
-    parser.add_argument('--wandb_key', type=str, default='', help='wandb key')
-
-    args = parser.parse_args()
-    return args
-    
-
-
-
-args= args_parser()
-args.device = torch.device('cuda:{}'.format(args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
-
-
-if args.wandb_key:
-  wandb.login(key=args.wandb_key)
-
-    # Initialize wandb
-  wandb.init(project='fed-shakespeare', entity='developer-sidani')
-else:
-    print("wandb key not provided, logging is disabled")
 
 """Utils for language models."""
 
@@ -85,12 +29,18 @@ import numpy as np
 import json
 
 
+
+wandb.login(key='13f6c62827c13afef515dd313fe5c67b1c1e1c65')
+
+    # Initialize wandb
+wandb.init(project='Federated_Learning', entity='developer-sidani', name='fedavg-shakespear')
 # ------------------------
 # utils for shakespeare dataset
 
 ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
 NUM_LETTERS = len(ALL_LETTERS)
-# print(NUM_LETTERS)
+model_output_path = '/content/Output/'
+data_dir = '/content/leaf/data/shakespeare/'
 
 def _one_hot(index, size):
     '''returns one-hot vector with given size and value 1 at given index
@@ -104,7 +54,7 @@ def letter_to_vec(letter):
     '''returns one-hot representation of given letter
     '''
     index = ALL_LETTERS.find(letter)
-    return index
+    return _one_hot(index, NUM_LETTERS)
 
 
 def word_to_indices(word):
@@ -112,7 +62,7 @@ def word_to_indices(word):
 
     Args:
         word: string
-    
+
     Return:
         indices: int list with length len(word)
     '''
@@ -122,70 +72,88 @@ def word_to_indices(word):
     return indices
 
 
-
-import json
-import os
-from collections import defaultdict
-import numpy as np
-from torch.utils.data import Dataset
-import torch
+# ------------------------
+# utils for sent140 dataset
 
 
+def split_line(line):
+    '''split given line/phrase into list of words
 
-class ShakeSpeare(Dataset):
-    def __init__(self, train=True, args=None):
-        super(ShakeSpeare, self).__init__()
-        train_clients, train_groups, train_data_temp, test_data_temp = read_data(args.shakespeare_train_path, args.shakespeare_test_path)
-        self.train = train
+    Args:
+        line: string representing phrase to be split
 
-        if self.train:
-            self.dic_users = {}
-            train_data_x = []
-            train_data_y = []
-            for i in range(len(train_clients)):
-                # if i == 100:
-                #     break
-                self.dic_users[i] = set()
-                l = len(train_data_x)
-                cur_x = train_data_temp[train_clients[i]]['x']
-                cur_y = train_data_temp[train_clients[i]]['y']
-                for j in range(len(cur_x)):
-                    self.dic_users[i].add(j + l)
-                    train_data_x.append(cur_x[j])
-                    train_data_y.append(cur_y[j])
-            self.data = train_data_x
-            self.label = train_data_y
-        else:
-            test_data_x = []
-            test_data_y = []
-            for i in range(len(train_clients)):
-                cur_x = test_data_temp[train_clients[i]]['x']
-                cur_y = test_data_temp[train_clients[i]]['y']
-                for j in range(len(cur_x)):
-                    test_data_x.append(cur_x[j])
-                    test_data_y.append(cur_y[j])
-            self.data = test_data_x
-            self.label = test_data_y
+    Return:
+        list of strings, with each string representing a word
+    '''
+    return re.findall(r"[\w']+|[.,!?;]", line)
 
-    def __len__(self):
-        return len(self.data)
+def line_to_indices(line, word2id, max_words=25):
+    '''converts given phrase into list of word indices
 
-    def __getitem__(self, index):
-        sentence, target = self.data[index], self.label[index]
-        indices = word_to_indices(sentence)
-        target = letter_to_vec(target)
-        # y = indices[1:].append(target)
-        # target = indices[1:].append(target)
-        indices = torch.LongTensor(np.array(indices))
-        # y = torch.Tensor(np.array(y))
-        # target = torch.LongTensor(np.array(target))
-        return indices, target
+    if the phrase has more than max_words words, returns a list containing
+    indices of the first max_words words
+    if the phrase has less than max_words words, repeatedly appends integer
+    representing unknown index to returned list until the list's length is
+    max_words
 
-    def get_client_dic(self):
-        if self.train:
-            return self.dic_users
-        else:
-            exit("The test dataset do not have dic_users!")
+    Args:
+        line: string representing phrase/sequence of words
+        word2id: dictionary with string words as keys and int indices as values
+        max_words: maximum number of word indices in returned list
+
+    Return:
+        indl: list of word indices, one index for each word in phrase
+    '''
+    unk_id = len(word2id)
+    line_list = split_line(line) # split phrase in words
+    indl = [word2id[w] if w in word2id else unk_id for w in line_list[:max_words]]
+    indl += [unk_id]*(max_words-len(indl))
+    return indl
+
+
+def bag_of_words(line, vocab):
+    '''returns bag of words representation of given phrase using given vocab
+
+    Args:
+        line: string representing phrase to be parsed
+        vocab: dictionary with words as keys and indices as values
+
+    Return:
+        integer list
+    '''
+    bag = [0]*len(vocab)
+    words = split_line(line)
+    for w in words:
+        if w in vocab:
+            bag[vocab[w]] += 1
+    return bag
+
+
+def get_word_emb_arr(path):
+    with open(path, 'r') as inf:
+        embs = json.load(inf)
+    vocab = embs['vocab']
+    word_emb_arr = np.array(embs['emba'])
+    indd = {}
+    for i in range(len(vocab)):
+        indd[vocab[i]] = i
+    vocab = {w: i for i, w in enumerate(embs['vocab'])}
+    return word_emb_arr, indd, vocab
+
+
+def val_to_vec(size, val):
+    """Converts target into one-hot.
+
+    Args:
+        size: Size of vector.
+        val: Integer in range [0, size].
+    Returns:
+         vec: one-hot vector with a 1 in the val element.
+    """
+    assert 0 <= val < size
+    vec = [0 for _ in range(size)]
+    vec[int(val)] = 1
+    return vec
 
 
 def batch_data(data, batch_size, seed):
@@ -205,20 +173,20 @@ def batch_data(data, batch_size, seed):
 
     # loop through mini-batches
     for i in range(0, len(data_x), batch_size):
-        batched_x = data_x[i:i + batch_size]
-        batched_y = data_y[i:i + batch_size]
+        batched_x = data_x[i:i+batch_size]
+        batched_y = data_y[i:i+batch_size]
         yield (batched_x, batched_y)
 
 
 def read_dir(data_dir):
     clients = []
     groups = []
-    data = defaultdict(lambda: None)
+    data = defaultdict(lambda : None)
 
     files = os.listdir(data_dir)
     files = [f for f in files if f.endswith('.json')]
     for f in files:
-        file_path = os.path.join(data_dir, f)
+        file_path = os.path.join(data_dir,f)
         with open(file_path, 'r') as inf:
             cdata = json.load(inf)
         clients.extend(cdata['users'])
@@ -228,7 +196,6 @@ def read_dir(data_dir):
 
     clients = list(sorted(data.keys()))
     return clients, groups, data
-
 
 
 def read_data(train_data_dir, test_data_dir):
@@ -254,214 +221,636 @@ def read_data(train_data_dir, test_data_dir):
     return train_clients, train_groups, train_data, test_data
 
 
-if __name__ == '__main__':
-    test = ShakeSpeare(train=True, args=args)
-    x = test.get_client_dic()
-    print(len(x))
-    for i in range(100):
-        print(len(x[i]))
+
+def generate_syn_logistic(dimension, n_clnt, n_cls, avg_data=4, alpha=1.0, beta=0.0, theta=0.0, iid_sol=False, iid_dat=False):
+
+    # alpha is for minimizer of each client
+    # beta  is for distirbution of points
+    # theta is for number of data points
+
+    diagonal = np.zeros(dimension)
+    for j in range(dimension):
+        diagonal[j] = np.power((j+1), -1.2)
+    cov_x = np.diag(diagonal)
+
+    samples_per_user = (np.random.lognormal(mean=np.log(avg_data + 1e-3), sigma=theta, size=n_clnt)).astype(int)
+    print('samples per user')
+    print(samples_per_user)
+    print('sum %d' %np.sum(samples_per_user))
+
+    num_samples = np.sum(samples_per_user)
+
+    data_x = list(range(n_clnt))
+    data_y = list(range(n_clnt))
+
+    mean_W = np.random.normal(0, alpha, n_clnt)
+    B = np.random.normal(0, beta, n_clnt)
+
+    mean_x = np.zeros((n_clnt, dimension))
+
+    if not iid_dat: # If IID then make all 0s.
+        for i in range(n_clnt):
+            mean_x[i] = np.random.normal(B[i], 1, dimension)
+
+    sol_W = np.random.normal(mean_W[0], 1, (dimension, n_cls))
+    sol_B = np.random.normal(mean_W[0], 1, (1, n_cls))
+
+    if iid_sol: # Then make vectors come from 0 mean distribution
+        sol_W = np.random.normal(0, 1, (dimension, n_cls))
+        sol_B = np.random.normal(0, 1, (1, n_cls))
+
+    for i in range(n_clnt):
+        if not iid_sol:
+            sol_W = np.random.normal(mean_W[i], 1, (dimension, n_cls))
+            sol_B = np.random.normal(mean_W[i], 1, (1, n_cls))
+
+        data_x[i] = np.random.multivariate_normal(mean_x[i], cov_x, samples_per_user[i])
+        data_y[i] = np.argmax((np.matmul(data_x[i], sol_W) + sol_B), axis=1).reshape(-1,1)
+
+    data_x = np.asarray(data_x)
+    data_y = np.asarray(data_y)
+    return data_x, data_y
+
+class DatasetSynthetic:
+    def __init__(self, alpha, beta, theta, iid_sol, iid_data, n_dim, n_clnt, n_cls, avg_data, name_prefix):
+        self.dataset = 'synt'
+        self.name  = name_prefix + '_'
+        self.name += '%d_%d_%d_%d_%f_%f_%f_%s_%s' %(n_dim, n_clnt, n_cls, avg_data,
+                alpha, beta, theta, iid_sol, iid_data)
+
+        data_path = 'Data'
+        if (not os.path.exists('%s/%s/' %(data_path, self.name))):
+            # Generate data
+            print('Sythetize')
+            data_x, data_y = generate_syn_logistic(dimension=n_dim, n_clnt=n_clnt, n_cls=n_cls, avg_data=avg_data,
+                                        alpha=alpha, beta=beta, theta=theta,
+                                        iid_sol=iid_sol, iid_dat=iid_data)
+            os.mkdir('%s/%s/' %(data_path, self.name))
+            np.save('%s/%s/data_x.npy' %(data_path, self.name), data_x)
+            np.save('%s/%s/data_y.npy' %(data_path, self.name), data_y)
+        else:
+            # Load data
+            print('Load')
+            data_x = np.load('%s/%s/data_x.npy' %(data_path, self.name), allow_pickle=True)
+            data_y = np.load('%s/%s/data_y.npy' %(data_path, self.name), allow_pickle=True)
+
+        for clnt in range(n_clnt):
+            print(', '.join(['%.4f' %np.mean(data_y[clnt]==t) for t in range(n_cls)]))
+
+        self.clnt_x = data_x
+        self.clnt_y = data_y
+
+        self.tst_x = np.concatenate(self.clnt_x, axis=0)
+        self.tst_y = np.concatenate(self.clnt_y, axis=0)
+        self.n_client = len(data_x)
+        print(self.clnt_x.shape)
+
+# Original prepration is from LEAF paper...
+# This loads Shakespeare dataset only.
+# data_path/train and data_path/test are assumed to be processed
+# To make the dataset smaller,
+# We take 2000 datapoints for each client in the train_set
+
+class ShakespeareObjectCrop:
+    def __init__(self, data_path, dataset_prefix, crop_amount=2000, tst_ratio=5, rand_seed=0):
+        self.dataset = 'shakespeare'
+        self.name    = dataset_prefix
+        users, groups, train_data, test_data = read_data(data_path+'train/', data_path+'test/')
+
+        # train_data is a dictionary whose keys are users list elements
+        # the value of each key is another dictionary.
+        # This dictionary consists of key value pairs as
+        # (x, features - list of input 80 lenght long words) and (y, target - list one letter)
+        # test_data has the same strucute.
+        # Ignore groups information, combine test cases for different clients into one test data
+        # Change structure to DatasetObject structure
+
+        self.users = users
+
+        self.n_client = len(users)
+        self.user_idx = np.asarray(list(range(self.n_client)))
+        self.clnt_x = list(range(self.n_client))
+        self.clnt_y = list(range(self.n_client))
+
+        tst_data_count = 0
+
+        for clnt in range(self.n_client):
+            np.random.seed(rand_seed + clnt)
+            start = np.random.randint(len(train_data[users[clnt]]['x'])-crop_amount)
+            self.clnt_x[clnt] = np.asarray(train_data[users[clnt]]['x'])[start:start+crop_amount]
+            self.clnt_y[clnt] = np.asarray(train_data[users[clnt]]['y'])[start:start+crop_amount]
+
+        tst_data_count = (crop_amount//tst_ratio) * self.n_client
+        self.tst_x = list(range(tst_data_count))
+        self.tst_y = list(range(tst_data_count))
+
+        tst_data_count = 0
+        for clnt in range(self.n_client):
+            curr_amount = (crop_amount//tst_ratio)
+            np.random.seed(rand_seed + clnt)
+            start = np.random.randint(len(test_data[users[clnt]]['x'])-curr_amount)
+            self.tst_x[tst_data_count: tst_data_count+ curr_amount] = np.asarray(test_data[users[clnt]]['x'])[start:start+curr_amount]
+            self.tst_y[tst_data_count: tst_data_count+ curr_amount] = np.asarray(test_data[users[clnt]]['y'])[start:start+curr_amount]
+
+            tst_data_count += curr_amount
+
+        self.clnt_x = np.asarray(self.clnt_x)
+        self.clnt_y = np.asarray(self.clnt_y)
+
+        self.tst_x = np.asarray(self.tst_x)
+        self.tst_y = np.asarray(self.tst_y)
+
+        # Convert characters to numbers
+
+        self.clnt_x_char = np.copy(self.clnt_x)
+        self.clnt_y_char = np.copy(self.clnt_y)
+
+        self.tst_x_char = np.copy(self.tst_x)
+        self.tst_y_char = np.copy(self.tst_y)
+
+        self.clnt_x = list(range(len(self.clnt_x_char)))
+        self.clnt_y = list(range(len(self.clnt_x_char)))
 
 
-dataset_train = ShakeSpeare(train=True, args=args)
-dataset_test = ShakeSpeare(train=False, args=args)
-dict_users = dataset_train.get_client_dic()
-args.num_users = len(dict_users)
-img_size = dataset_train[0][0].shape
+        for clnt in range(len(self.clnt_x_char)):
+            clnt_list_x = list(range(len(self.clnt_x_char[clnt])))
+            clnt_list_y = list(range(len(self.clnt_x_char[clnt])))
+
+            for idx in range(len(self.clnt_x_char[clnt])):
+                clnt_list_x[idx] = np.asarray(word_to_indices(self.clnt_x_char[clnt][idx]))
+                clnt_list_y[idx] = np.argmax(np.asarray(letter_to_vec(self.clnt_y_char[clnt][idx]))).reshape(-1)
+
+            self.clnt_x[clnt] = np.asarray(clnt_list_x)
+            self.clnt_y[clnt] = np.asarray(clnt_list_y)
+
+        self.clnt_x = np.asarray(self.clnt_x)
+        self.clnt_y = np.asarray(self.clnt_y)
 
 
-import torch
-from torch import nn
-import torch.nn.functional as F
+        self.tst_x = list(range(len(self.tst_x_char)))
+        self.tst_y = list(range(len(self.tst_x_char)))
 
-class CharLSTM(nn.Module):
-    def __init__(self):
-        super(CharLSTM, self).__init__()
-        self.embed = nn.Embedding(80, 8)
-        self.lstm = nn.LSTM(8, 256, 2, batch_first=True)
-        # self.h0 = torch.zeros(2, batch_size, 256).requires_grad_()
-        self.drop = nn.Dropout()
-        self.out = nn.Linear(256, 80)
+        for idx in range(len(self.tst_x_char)):
+            self.tst_x[idx] = np.asarray(word_to_indices(self.tst_x_char[idx]))
+            self.tst_y[idx] = np.argmax(np.asarray(letter_to_vec(self.tst_y_char[idx]))).reshape(-1)
 
-    def forward(self, x):
-        x = self.embed(x)
-        # if self.h0.size(1) == x.size(0):
-        #     self.h0.data.zero_()
-        #     # self.c0.data.zero_()
-        # else:
-        #     # resize hidden vars
-        #     device = next(self.parameters()).device
-        #     self.h0 = torch.zeros(2, x.size(0), 256).to(device).requires_grad_()
-        x, hidden = self.lstm(x)
-        x = self.drop(x)
-        # x = x.contiguous().view(-1, 256)
-        # x = x.contiguous().view(-1, 256)
-        return self.out(x[:, -1, :])
-
-net_glob = CharLSTM().to(args.device)
-print(net_glob)
-
-#training
-net_glob.train()
+        self.tst_x = np.asarray(self.tst_x)
+        self.tst_y = np.asarray(self.tst_y)
 
 
+class ShakespeareObjectCrop_noniid:
+    def __init__(self, data_path, dataset_prefix, n_client=100, crop_amount=2000, tst_ratio=5, rand_seed=0):
+        self.dataset = 'shakespeare'
+        self.name    = dataset_prefix
+        users, groups, train_data, test_data = read_data(data_path+'train/', data_path+'test/')
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
+        # train_data is a dictionary whose keys are users list elements
+        # the value of each key is another dictionary.
+        # This dictionary consists of key value pairs as
+        # (x, features - list of input 80 lenght long words) and (y, target - list one letter)
+        # test_data has the same strucute.
+        # Change structure to DatasetObject structure
 
-import torch
-from torch import nn, autograd
-from torch.utils.data import DataLoader, Dataset
-import numpy as np
-import random
-from sklearn import metrics
+        self.users = users
+
+        tst_data_count_per_clnt = (crop_amount//tst_ratio)
+        # Group clients that have at least crop_amount datapoints
+        arr = []
+        for clnt in range(len(users)):
+            if (len(np.asarray(train_data[users[clnt]]['y'])) > crop_amount
+                and len(np.asarray(test_data[users[clnt]]['y'])) > tst_data_count_per_clnt):
+                arr.append(clnt)
+
+        # choose n_client clients randomly
+        self.n_client = n_client
+        np.random.seed(rand_seed)
+        np.random.shuffle(arr)
+        self.user_idx = arr[:self.n_client]
+
+        self.clnt_x = list(range(self.n_client))
+        self.clnt_y = list(range(self.n_client))
+
+        tst_data_count = 0
+
+        for clnt, idx in enumerate(self.user_idx):
+            np.random.seed(rand_seed + clnt)
+            start = np.random.randint(len(train_data[users[idx]]['x'])-crop_amount)
+            self.clnt_x[clnt] = np.asarray(train_data[users[idx]]['x'])[start:start+crop_amount]
+            self.clnt_y[clnt] = np.asarray(train_data[users[idx]]['y'])[start:start+crop_amount]
+
+        tst_data_count = (crop_amount//tst_ratio) * self.n_client
+        self.tst_x = list(range(tst_data_count))
+        self.tst_y = list(range(tst_data_count))
+
+        tst_data_count = 0
+
+        for clnt, idx in enumerate(self.user_idx):
+
+            curr_amount = (crop_amount//tst_ratio)
+            np.random.seed(rand_seed + clnt)
+            start = np.random.randint(len(test_data[users[idx]]['x'])-curr_amount)
+            self.tst_x[tst_data_count: tst_data_count+ curr_amount] = np.asarray(test_data[users[idx]]['x'])[start:start+curr_amount]
+            self.tst_y[tst_data_count: tst_data_count+ curr_amount] = np.asarray(test_data[users[idx]]['y'])[start:start+curr_amount]
+            tst_data_count += curr_amount
+
+        self.clnt_x = np.asarray(self.clnt_x)
+        self.clnt_y = np.asarray(self.clnt_y)
+
+        self.tst_x = np.asarray(self.tst_x)
+        self.tst_y = np.asarray(self.tst_y)
+
+        # Convert characters to numbers
+
+        self.clnt_x_char = np.copy(self.clnt_x)
+        self.clnt_y_char = np.copy(self.clnt_y)
+
+        self.tst_x_char = np.copy(self.tst_x)
+        self.tst_y_char = np.copy(self.tst_y)
+
+        self.clnt_x = list(range(len(self.clnt_x_char)))
+        self.clnt_y = list(range(len(self.clnt_x_char)))
 
 
-class DatasetSplit(Dataset):
-    def __init__(self, dataset, idxs):
-        self.dataset = dataset
-        self.idxs = list(idxs)
+        for clnt in range(len(self.clnt_x_char)):
+            clnt_list_x = list(range(len(self.clnt_x_char[clnt])))
+            clnt_list_y = list(range(len(self.clnt_x_char[clnt])))
+
+            for idx in range(len(self.clnt_x_char[clnt])):
+                clnt_list_x[idx] = np.asarray(word_to_indices(self.clnt_x_char[clnt][idx]))
+                clnt_list_y[idx] = np.argmax(np.asarray(letter_to_vec(self.clnt_y_char[clnt][idx]))).reshape(-1)
+
+            self.clnt_x[clnt] = np.asarray(clnt_list_x)
+            self.clnt_y[clnt] = np.asarray(clnt_list_y)
+
+        self.clnt_x = np.asarray(self.clnt_x)
+        self.clnt_y = np.asarray(self.clnt_y)
+
+
+        self.tst_x = list(range(len(self.tst_x_char)))
+        self.tst_y = list(range(len(self.tst_x_char)))
+
+        for idx in range(len(self.tst_x_char)):
+            self.tst_x[idx] = np.asarray(word_to_indices(self.tst_x_char[idx]))
+            self.tst_y[idx] = np.argmax(np.asarray(letter_to_vec(self.tst_y_char[idx]))).reshape(-1)
+
+        self.tst_x = np.asarray(self.tst_x)
+        self.tst_y = np.asarray(self.tst_y)
+
+class Dataset(torch.utils.data.Dataset):
+
+    def __init__(self, data_x, data_y=True, train=False, dataset_name=''):
+        self.name = dataset_name
+        if self.name == 'shakespeare':
+
+            self.X_data = data_x
+            self.y_data = data_y
+
+            self.X_data = torch.tensor(self.X_data).long()
+            if not isinstance(data_y, bool):
+                self.y_data = torch.tensor(self.y_data).float()
+
 
     def __len__(self):
-        return len(self.idxs)
+        return len(self.X_data)
 
-    def __getitem__(self, item):
-        image, label = self.dataset[self.idxs[item]]
-        return image, label
-
-
-class LocalUpdate(object):
-    def __init__(self, args, dataset=None, idxs=None):
-        self.args = args
-        self.loss_func = nn.CrossEntropyLoss()
-        self.selected_clients = []
-        self.ldr_train = DataLoader(DatasetSplit(dataset, idxs), batch_size=self.args.local_bs, shuffle=True)
-        self.lr = args.lr
-        self.lr_decay = args.lr_decay
-
-    def train(self, net):
-        net.train()
-        optimizer = torch.optim.SGD(net.parameters(), lr=self.lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=self.lr_decay)
-
-        epoch_loss = []
-        for iter in tqdm(range(self.args.local_ep), desc="Epochs"):
-            batch_loss = []
-            for batch_idx, (images, labels) in enumerate(tqdm(self.ldr_train, desc="Batches", leave=False)):
-                images, labels = images.to(self.args.device), labels.to(self.args.device)
-                net.zero_grad()
-                log_probs = net(images)
-                loss = self.loss_func(log_probs, labels)
-                loss.backward()
-                optimizer.step()
-                scheduler.step()
-                if self.args.verbose and batch_idx % 10 == 0:
-                    print('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                        iter, batch_idx * len(images), len(self.ldr_train.dataset),
-                               100. * batch_idx / len(self.ldr_train), loss.item()))
-                batch_loss.append(loss.item())
-            epoch_loss.append(sum(batch_loss)/len(batch_loss))
-        self.lr = scheduler.get_last_lr()[0]
-        return net.state_dict(), sum(epoch_loss) / len(epoch_loss)
-# -*- coding: utf-8 -*-
-# Python version: 3.6
-
-import copy
-import torch
-from torch import nn
-
-def FedWeightAvg(w, size):
-    totalSize = sum(size)
-    w_avg = copy.deepcopy(w[0])
-    for k in w_avg.keys():
-        w_avg[k] = w[0][k]*size[0]
-    for k in w_avg.keys():
-        for i in range(1, len(w)):
-            w_avg[k] += w[i][k] * size[i]
-        # print(w_avg[k])
-        w_avg[k] = torch.div(w_avg[k], totalSize)
-    return w_avg
-
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @python: 3.6
-
-import torch
-from torch import nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
+    def __getitem__(self, idx):
+        if self.name == 'shakespeare':
+            x = self.X_data[idx]
+            y = self.y_data[idx]
+            return x, y
 
 
-def test_img(net_g, datatest, args):
-    net_g.eval()
-    # testing
-    test_loss = 0
-    correct = 0
-    data_loader = DataLoader(datatest, batch_size=args.bs)
-    l = len(data_loader)
-    for idx, (data, target) in enumerate(tqdm(data_loader, desc="Processing")):
-      if torch.cuda.is_available() and args.gpu != -1:
-          data, target = data.cuda(args.device), target.cuda(args.device)
-      else:
-          data, target = data.cpu(), target.cpu()
-      
-      log_probs = net_g(data)
-      # Sum up batch loss
-      test_loss += F.cross_entropy(log_probs, target, reduction='sum').item()
-      # Get the index of the max log-probability
-      y_pred = log_probs.data.max(1, keepdim=True)[1]
-      correct += y_pred.eq(target.data.view_as(y_pred)).long().cpu().sum()
-    test_loss /= len(data_loader.dataset)
-    accuracy = 100.00 * correct / len(data_loader.dataset)
-    if args.verbose:
-        print('\nTest set: Average loss: {:.4f} \nAccuracy: {}/{} ({:.2f}%)\n'.format(
-            test_loss, correct, len(data_loader.dataset), accuracy))
-    return accuracy, test_loss
-
-if args.wandb_key:
-    wandb.config.update(args)
-    wandb.watch(net_glob)
-
-# copy weights
-w_glob = net_glob.state_dict()
-
-# training
-acc_test = []
-clients = [LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
-            for idx in range(args.num_users)]
-m, clients_index_array = max(int(args.frac * args.num_users), 1), range(args.num_users)
-for iter in range(args.epochs):
-    w_locals, loss_locals, weight_locols= [], [], []
-    idxs_users = np.random.choice(clients_index_array, m, replace=False)
-    for idx in idxs_users:
-        w, loss = clients[idx].train(net=copy.deepcopy(net_glob).to(args.device))
-        w_locals.append(copy.deepcopy(w))
-        loss_locals.append(copy.deepcopy(loss))
-        weight_locols.append(len(dict_users[idx]))
-
-    # update global weights
-    w_glob = FedWeightAvg(w_locals, weight_locols)
-    # copy weight to net_glob
-    net_glob.load_state_dict(w_glob)
-
-    # print accuracy
-    net_glob.eval()
-    acc_t, loss_t = test_img(net_glob, dataset_test, args)
-    if args.wandb_key:
-        wandb.log({'Loss': loss_t, 'Round': iter, 'Accuracy': acc_t})
-    print("Round {:3d},Testing accuracy: {:.2f}".format(iter, acc_t))
-
-    acc_test.append(acc_t.item())
 
 
-rootpath = './log'
-if not os.path.exists(rootpath):
-    os.makedirs(rootpath)
-accfile = open(rootpath + '/accfile_fed_{}_{}_{}_iid{}.dat'.
-                format(args.dataset, args.model, args.epochs, args.iid), "w")
+class client_model(nn.Module):
+    def __init__(self, args=True):
+        super(client_model, self).__init__()
+        embedding_dim = 8
+        hidden_size = 100
+        num_LSTM = 2
+        input_length = 80
+        self.n_cls = 80
 
-for ac in acc_test:
-    sac = str(ac)
-    accfile.write(sac)
-    accfile.write('\n')
-accfile.close()
+        self.embedding = nn.Embedding(input_length, embedding_dim)
+        self.stacked_LSTM = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, num_layers=num_LSTM)
+        self.fc = nn.Linear(hidden_size, self.n_cls)
+
+
+    def forward(self, x):
+        x = self.embedding(x)
+        x = x.permute(1, 0, 2) # lstm accepts in this style
+        output, (h_, c_) = self.stacked_LSTM(x)
+        # Choose last hidden layer
+        last_hidden = output[-1,:,:]
+        x = self.fc(last_hidden)
+
+        return x
+
+torch.cuda.set_device('cuda:0')
+
+
+# Global parameters
+# os.environ["CUDA_DEVICE_ORDER"]    = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+max_norm = 10
+# --- Evaluate a NN model
+def get_acc_loss(data_x, data_y, model, dataset_name, w_decay = None):
+    acc_overall = 0; loss_overall = 0;
+    loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
+    batch_size = min(6000, data_x.shape[0])
+    n_tst = data_x.shape[0]
+    tst_gen = data.DataLoader(Dataset(data_x, data_y, dataset_name=dataset_name), batch_size=batch_size, shuffle=False)
+    model.eval(); model = model.to(device)
+    with torch.no_grad():
+        tst_gen_iter = tst_gen.__iter__()
+        for i in range(int(np.ceil(n_tst/batch_size))):
+            batch_x, batch_y = tst_gen_iter.__next__()
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
+            y_pred = model(batch_x)
+
+            loss = loss_fn(y_pred, batch_y.reshape(-1).long())
+            loss_overall += loss.item()
+            # Accuracy calculation
+            y_pred = y_pred.cpu().numpy()
+            y_pred = np.argmax(y_pred, axis=1).reshape(-1)
+            batch_y = batch_y.cpu().numpy().reshape(-1).astype(np.int32)
+            batch_correct = np.sum(y_pred == batch_y)
+            acc_overall += batch_correct
+
+    loss_overall /= n_tst
+    if w_decay != None:
+        # Add L2 loss
+        params = get_mdl_params([model], n_par=None)
+        loss_overall += w_decay/2 * np.sum(params * params)
+
+    model.train()
+    return loss_overall, acc_overall / n_tst
+
+# --- Helper functions
+
+def set_client_from_params(mdl, params):
+    dict_param = copy.deepcopy(dict(mdl.named_parameters()))
+    idx = 0
+    for name, param in mdl.named_parameters():
+        weights = param.data
+        length = len(weights.reshape(-1))
+        dict_param[name].data.copy_(torch.tensor(params[idx:idx+length].reshape(weights.shape)).to(device))
+        idx += length
+
+    mdl.load_state_dict(dict_param)
+    return mdl
+
+
+def get_mdl_params(model_list, n_par=None):
+
+    if n_par==None:
+        exp_mdl = model_list[0]
+        n_par = 0
+        for name, param in exp_mdl.named_parameters():
+            n_par += len(param.data.reshape(-1))
+
+    param_mat = np.zeros((len(model_list), n_par)).astype('float32')
+    for i, mdl in enumerate(model_list):
+        idx = 0
+        for name, param in mdl.named_parameters():
+            temp = param.data.cpu().numpy().reshape(-1)
+            param_mat[i, idx:idx + len(temp)] = temp
+            idx += len(temp)
+    return np.copy(param_mat)
+
+# --- Train functions
+
+def train_model(model, trn_x, trn_y, learning_rate, batch_size, epoch, print_per, weight_decay, dataset_name):
+    n_trn = trn_x.shape[0]
+    trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True)
+    loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    model.train(); model = model.to(device)
+
+    for e in range(epoch):
+        # Training
+
+        trn_gen_iter = trn_gen.__iter__()
+        for i in range(int(np.ceil(n_trn/batch_size))):
+            batch_x, batch_y = trn_gen_iter.__next__()
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
+
+            y_pred = model(batch_x)
+            loss = loss_fn(y_pred, batch_y.reshape(-1).long())
+            loss = loss / list(batch_y.size())[0]
+
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(parameters=model.parameters(), max_norm=max_norm) # Clip gradients
+            optimizer.step()
+
+        if (e+1) % print_per == 0:
+            loss_trn, acc_trn = get_acc_loss(trn_x, trn_y, model, dataset_name, weight_decay)
+            print("Epoch %3d, Training Accuracy: %.4f, Loss: %.4f" %(e+1, acc_trn, loss_trn))
+            wandb.log({"epoch": e+1, "Training Accuracy":acc_trn, "Loss":loss_trn })
+            model.train()
+
+    # Freeze model
+    for params in model.parameters():
+        params.requires_grad = False
+    model.eval()
+
+    return model
+
+
+
+### Methods
+def train_FedAvg(data_obj, act_prob ,learning_rate, batch_size, epoch, com_amount, print_per, weight_decay, model_func, init_model, save_period, lr_decay_per_round, rand_seed=0):
+    method_name = 'FedAvg'
+    n_clnt=data_obj.n_client
+    clnt_x = data_obj.clnt_x; clnt_y=data_obj.clnt_y
+
+    cent_x = np.concatenate(clnt_x, axis=0)
+    cent_y = np.concatenate(clnt_y, axis=0)
+
+    weight_list = np.asarray([len(clnt_y[i]) for i in range(n_clnt)])
+    weight_list = weight_list.reshape((n_clnt, 1))
+
+    if not os.path.exists('/content/Output/%s/%s' %(data_obj.name, method_name)):
+        os.mkdir('/content/Output/%s/%s' %(data_obj.name, method_name))
+
+    n_save_instances = int(com_amount / save_period)
+    fed_mdls_sel = list(range(n_save_instances)); fed_mdls_all = list(range(n_save_instances))
+
+    trn_perf_sel = np.zeros((com_amount, 2)); trn_perf_all = np.zeros((com_amount, 2))
+    tst_perf_sel = np.zeros((com_amount, 2)); tst_perf_all = np.zeros((com_amount, 2))
+    n_par = len(get_mdl_params([model_func()])[0])
+
+    init_par_list=get_mdl_params([init_model], n_par)[0]
+    clnt_params_list=np.ones(n_clnt).astype('float32').reshape(-1, 1) * init_par_list.reshape(1, -1) # n_clnt X n_par
+    clnt_models = list(range(n_clnt))
+
+    avg_model = model_func().to(device)
+    avg_model.load_state_dict(copy.deepcopy(dict(init_model.named_parameters())))
+
+    all_model = model_func().to(device)
+    all_model.load_state_dict(copy.deepcopy(dict(init_model.named_parameters())))
+
+    if os.path.exists('/content/Output/%s/%s/%d_com_tst_perf_all.npy' %(data_obj.name, method_name, com_amount)):
+        # Load performances and models...
+        for j in range(n_save_instances):
+            fed_model = model_func()
+            fed_model.load_state_dict(torch.load('/content/Output/%s/%s/%d_com_sel.pt' %(data_obj.name, method_name, (j+1)*save_period)))
+            fed_model.eval()
+            fed_model = fed_model.to(device)
+            fed_mdls_sel[j] = fed_model
+
+            fed_model = model_func()
+            fed_model.load_state_dict(torch.load('/content/Output/%s/%s/%d_com_all.pt' %(data_obj.name, method_name, (j+1)*save_period)))
+            fed_model.eval()
+            fed_model = fed_model.to(device)
+            fed_mdls_all[j] = fed_model
+
+        trn_perf_sel = np.load('/content/Output/%s/%s/%d_com_trn_perf_sel.npy' %(data_obj.name, method_name, com_amount))
+        trn_perf_all = np.load('/content/Output/%s/%s/%d_com_trn_perf_all.npy' %(data_obj.name, method_name, com_amount))
+
+        tst_perf_sel = np.load('/content/Output/%s/%s/%d_com_tst_perf_sel.npy' %(data_obj.name, method_name, com_amount))
+        tst_perf_all = np.load('/content/Output/%s/%s/%d_com_tst_perf_all.npy' %(data_obj.name, method_name, com_amount))
+
+        clnt_params_list = np.load('/content/Output/%s/%s/%d_clnt_params_list.npy' %(data_obj.name, method_name, com_amount))
+
+    else:
+        for i in range(com_amount):
+
+            inc_seed = 0
+            while(True):
+                # Fix randomness in client selection
+                np.random.seed(i + rand_seed + inc_seed)
+                act_list    = np.random.uniform(size=n_clnt)
+                act_clients = act_list <= act_prob
+                selected_clnts = np.sort(np.where(act_clients)[0])
+                inc_seed += 1
+                if len(selected_clnts) != 0:
+                    break
+            print('Selected Clients: %s' %(', '.join(['%2d' %item for item in selected_clnts])))
+
+            for clnt in selected_clnts:
+                print('---- Training client %d' %clnt)
+                trn_x = clnt_x[clnt]
+                trn_y = clnt_y[clnt]
+
+                clnt_models[clnt] = model_func().to(device)
+                clnt_models[clnt].load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
+
+                for params in clnt_models[clnt].parameters():
+                    params.requires_grad = True
+                clnt_models[clnt] = train_model(clnt_models[clnt], trn_x, trn_y, learning_rate * (lr_decay_per_round ** i), batch_size, epoch, print_per, weight_decay, data_obj.dataset)
+
+                clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
+
+            # Scale with weights
+            avg_model = set_client_from_params(model_func(), np.sum(clnt_params_list[selected_clnts]*weight_list[selected_clnts]/np.sum(weight_list[selected_clnts]), axis = 0))
+            all_model = set_client_from_params(model_func(), np.sum(clnt_params_list*weight_list/np.sum(weight_list), axis = 0))
+
+            ###
+            loss_tst, acc_tst = get_acc_loss(data_obj.tst_x, data_obj.tst_y, avg_model, data_obj.dataset)
+            tst_perf_sel[i] = [loss_tst, acc_tst]
+            print("**** Communication sel %3d, Test Accuracy: %.4f, Loss: %.4f" %(i+1, acc_tst, loss_tst))
+            wandb.log({"Communication sel": i+1, "Test Acc": acc_tst, "Loss": loss_tst})
+            ###
+            loss_tst, acc_tst = get_acc_loss(cent_x, cent_y, avg_model, data_obj.dataset)
+            trn_perf_sel[i] = [loss_tst, acc_tst]
+            print("**** Communication sel %3d, Cent Accuracy: %.4f, Loss: %.4f" %(i+1, acc_tst, loss_tst))
+            wandb.log({"Communication sel": i+1, "Cent Accuracy": acc_tst, "Loss": loss_tst})
+            ###
+            loss_tst, acc_tst = get_acc_loss(data_obj.tst_x, data_obj.tst_y, all_model, data_obj.dataset)
+            tst_perf_all[i] = [loss_tst, acc_tst]
+            print("**** Communication all %3d, Test Accuracy: %.4f, Loss: %.4f" %(i+1, acc_tst, loss_tst))
+            wandb.log({"Communication all": i+1, "Test Acc": acc_tst, "Loss": loss_tst})
+            ###
+            loss_tst, acc_tst = get_acc_loss(cent_x, cent_y, all_model, data_obj.dataset)
+            trn_perf_all[i] = [loss_tst, acc_tst]
+            print("**** Communication all %3d, Cent Accuracy: %.4f, Loss: %.4f" %(i+1, acc_tst, loss_tst))
+            wandb.log({"Communication all": i+1, "Cent Accuracy": acc_tst, "Loss": loss_tst})
+
+            if ((i+1) % save_period == 0):
+                torch.save(avg_model.state_dict(), '/content/Output/%s/%s/%d_com_sel.pt' %(data_obj.name, method_name, (i+1)))
+                torch.save(all_model.state_dict(), '/content/Output/%s/%s/%d_com_all.pt' %(data_obj.name, method_name, (i+1)))
+                np.save('/content/Output/%s/%s/%d_clnt_params_list.npy' %(data_obj.name, method_name, (i+1)), clnt_params_list)
+
+                np.save('/content/Output/%s/%s/%d_com_trn_perf_sel.npy' %(data_obj.name, method_name, (i+1)), trn_perf_sel[:i+1])
+                np.save('/content/Output/%s/%s/%d_com_tst_perf_sel.npy' %(data_obj.name, method_name, (i+1)), tst_perf_sel[:i+1])
+
+                np.save('/content/Output/%s/%s/%d_com_trn_perf_all.npy' %(data_obj.name, method_name, (i+1)), trn_perf_all[:i+1])
+                np.save('/content/Output/%s/%s/%d_com_tst_perf_all.npy' %(data_obj.name, method_name, (i+1)), tst_perf_all[:i+1])
+
+                if (i+1) > save_period:
+                    if os.path.exists('/content/Output/%s/%s/%d_com_trn_perf_sel.npy' %(data_obj.name, method_name, i+1-save_period)):
+                        # Delete the previous saved arrays
+                        os.remove('/content/Output/%s/%s/%d_com_trn_perf_sel.npy' %(data_obj.name, method_name, i+1-save_period))
+                        os.remove('/content/Output/%s/%s/%d_com_tst_perf_sel.npy' %(data_obj.name, method_name, i+1-save_period))
+
+                        os.remove('/content/Output/%s/%s/%d_com_trn_perf_all.npy' %(data_obj.name, method_name, i+1-save_period))
+                        os.remove('/content/Output/%s/%s/%d_com_tst_perf_all.npy' %(data_obj.name, method_name, i+1-save_period))
+
+                        os.remove('/content/Output/%s/%s/%d_clnt_params_list.npy' %(data_obj.name, method_name, i+1-save_period))
+
+            if ((i+1) % save_period == 0):
+                fed_mdls_sel[i//save_period] = avg_model
+                fed_mdls_all[i//save_period] = all_model
+
+    return fed_mdls_sel, trn_perf_sel, tst_perf_sel, fed_mdls_all, trn_perf_all, tst_perf_all
+
+
+
+storage_path = '/content/leaf/data/shakespeare/data/'
+
+
+name = 'shakepeare'
+data_obj = ShakespeareObjectCrop(storage_path, 'shakespeare')
+
+
+model_name         = 'shakespeare' # Model type
+com_amount         = 200
+save_period        = 50
+weight_decay       = 1e-3
+batch_size         = 50
+act_prob           = 1
+lr_decay_per_round = 1
+epoch              = 4
+learning_rate      = 0.1
+print_per          = 5
+
+# Model function
+model_func = lambda : client_model(model_name)
+init_model = model_func()
+# Initalise the model for all methods or load it from a saved initial model
+init_model = model_func()
+if not os.path.exists('/content/Output/%s/%s_init_mdl.pt' %(data_obj.name, model_name)):
+    print("New directory!")
+    os.mkdir('/content/Output/%s/' %(data_obj.name))
+    torch.save(init_model.state_dict(), '/content/Output/%s/%s_init_mdl.pt' %(data_obj.name, model_name))
+else:
+    # Load model
+    init_model.load_state_dict(torch.load('/content/Output/%s/%s_init_mdl.pt' %(data_obj.name, model_name)))
+
+print('FedAvg')
+
+[fed_mdls_sel_FedAvg, trn_perf_sel_FedAvg, tst_perf_sel_FedAvg,
+ fed_mdls_all_FedAvg, trn_perf_all_FedAvg,
+ tst_perf_all_FedAvg] = train_FedAvg(data_obj=data_obj, act_prob=act_prob, learning_rate=learning_rate, batch_size=batch_size,
+                                     epoch=epoch, com_amount=com_amount, print_per=print_per, weight_decay=weight_decay,
+                                     model_func=model_func, init_model=init_model, save_period=save_period,
+                                     lr_decay_per_round=lr_decay_per_round)
+
+plt.figure(figsize=(6, 5))
+plt.plot(np.arange(com_amount)+1, tst_perf_all_FedAvg[:,1], label='FedAVG')
+plt.ylabel('Test Accuracy', fontsize=16)
+plt.xlabel('Communication Rounds', fontsize=16)
+plt.legend(fontsize=16, loc='lower right', bbox_to_anchor=(1.015, -0.02))
+plt.grid()
+plt.xlim([0, com_amount+1])
+plt.title(data_obj.name, fontsize=16)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+plt.savefig('/content/Output/%s/plot.pdf' %data_obj.name, dpi=1000, bbox_inches='tight')
+# plt.show()

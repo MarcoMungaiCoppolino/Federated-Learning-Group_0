@@ -26,7 +26,9 @@ if __name__ == '__main__':
         print("No wandb key provided")
 
     if args.gpu:
-        torch.cuda.set_device(args.gpu)
+        d = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
+        print(f"Using {d} device")
+        torch.cuda.set_device(d)
     device = 'cuda' if args.gpu else 'cpu'
     
     train_set, val_set, test_set, user_groups_train = get_dataset(args)
@@ -83,7 +85,7 @@ if __name__ == '__main__':
                 print(f"Resuming training from epoch {start_epoch}")
             else:
                 start_epoch = 0
-                global_model = CIFARLeNet()
+                global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
                 global_model.to(device)
         else:
             start_epoch = 0
