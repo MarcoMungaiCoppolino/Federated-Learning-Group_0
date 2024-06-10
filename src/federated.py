@@ -35,17 +35,17 @@ if __name__ == '__main__':
     if args.dataset == 'cifar':
 
         if args.iid:
-            if args.partecipation:
-                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_epoch_*.pth.tar"
+            if args.participation:
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_epoch_*.pth.tar"
             else:
-                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.gamma}_epoch_*.pth.tar"
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.gamma}_epoch_*.pth.tar"
 
         else:
-            if args.partecipation:
-                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
+            if args.participation:
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
 
             else:
-                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.gamma}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
+                checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
     else:
         checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
     # Find the latest checkpoint that matches the pattern
@@ -77,7 +77,7 @@ if __name__ == '__main__':
             
 
             if args.checkpoint_resume == 1:
-                args.iid, args.partecipation, args.Nc, args.local_ep = last_user_input
+                args.iid, args.participation, args.Nc, args.local_ep = last_user_input
                 global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
                 global_model.to(device)
                 global_model.load_state_dict(checkpoint['model_state_dict'])
@@ -116,7 +116,7 @@ if __name__ == '__main__':
             global_model.train()
             num_selected_clients = max(int(args.frac * args.num_users), 1)
 
-            if args.partecipation:
+            if args.participation:
                 # Uniform participation
                 idxs_users = np.random.choice(range(args.num_users), num_selected_clients, replace=False)
             else:
@@ -156,16 +156,16 @@ if __name__ == '__main__':
             if (epoch+1) % print_every == 0:
                 # Save checkpoint
                 if args.iid:
-                    filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                    filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
                 else:
-                    filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                    filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
 
                 checkpoint = {
                     'epoch': epoch + 1,
                     'model_state_dict': global_model.state_dict(),
                     'loss': train_loss,
                     'train_accuracy': train_accuracy,
-                    'user_input': (args.iid, args.partecipation, args.Nc, args.local_ep),
+                    'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
                     'train_loss': train_loss
                 }
                 save_checkpoint(checkpoint, filename=filename)
@@ -176,9 +176,9 @@ if __name__ == '__main__':
                         prev_epoch = epoch + 1 - print_every
 
                         if args.iid:
-                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
                         else:
-                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.partecipation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
                         if os.path.exists(prev_filename):
                             os.remove(prev_filename)
 
