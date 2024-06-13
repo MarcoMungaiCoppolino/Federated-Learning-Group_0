@@ -5,6 +5,7 @@ from utils.update import *
 from utils.sampling import *
 from utils.exp_details import *
 from utils.average_weights import *
+import pandas as pd
 from utils.logger import Logger
 import os
 import copy
@@ -14,6 +15,7 @@ from models import *
 import glob 
 import torch
 from utils.wandb_utils import *
+import pickle
 
 
 if __name__ == '__main__':
@@ -51,7 +53,7 @@ if __name__ == '__main__':
         logger.info(f"Running can be found at: {wandb_logger.get_execution_link()}")
     logger.info("######################")
     logger.info("######################")
-
+    metrics = pd.DataFrame(columns=['Round', 'Loss', 'Accuracy'])
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -173,6 +175,7 @@ if __name__ == '__main__':
                 acc, loss = local_model.inference(model=global_model)
                 train_accuracy.append(acc)
                 # Print global training loss after every 'print_every' rounds
+                metrics = metrics.append({'Round': epoch+1, 'Loss': loss_avg, 'Accuracy': acc}, ignore_index=True)
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Training Loss : {np.mean(np.array(train_loss))}')
                 wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
@@ -212,7 +215,9 @@ if __name__ == '__main__':
 
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_set)
-
+    metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
     logger.info(f' \n Results after {args.epochs} global rounds of training:')
     logger.info("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     logger.info("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    logger.info("|---- Test Loss: {:.2f}".format(test_loss))
+    logger.inf(f"Metrics saved at {args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")

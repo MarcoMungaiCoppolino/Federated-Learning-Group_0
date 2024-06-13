@@ -71,8 +71,9 @@ def args_parser():
                         help='how often the train_accuracy is computed, and \
                         how often a new checkpoint is saved')
     parser.add_argument('--verbose', type=int, default=0, help='verbose')
-    parser.add_argument('--gamma', type=int, default=0.1, help='gamma')
+    parser.add_argument('--gamma', type=float, default=0.1, help='gamma')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
+    parser.add_argument('--metrics_dir', type=str, default='/content/drive/MyDrive/MLDL/cifar/metrics', help='metrics directory')
 
     # If running in a notebook, ignore the first argument which is the script name
     args = parser.parse_args(args=sys.argv[1:] if "__file__" in globals() else [])
