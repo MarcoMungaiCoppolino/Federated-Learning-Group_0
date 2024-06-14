@@ -170,8 +170,7 @@ if __name__ == '__main__':
                 global_model.eval()
 
                 if (epoch+1) % print_every == 0:
-                    local_model = LocalUpdate(args=args, client_train=user_groups_train[idx], val_set=val_set)
-                    acc, loss = local_model.inference(model=global_model)
+                    acc, loss = test_inference(args, global_model, val_set)
                     train_accuracy.append(acc)
                     # Print global training loss after every 'print_every' rounds'
                     metrics.loc[len(metrics)] = [epoch+1, loss_avg, acc]
