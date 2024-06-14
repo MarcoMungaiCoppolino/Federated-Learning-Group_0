@@ -1,6 +1,9 @@
 import torch
 from torchvision import datasets, transforms
 from .sampling import *
+import numpy as np
+from . import *
+from .nlp_utils import *
 
 def get_dataset(args):
     """ Returns train and test datasets and a user group which is a dict where
@@ -88,40 +91,6 @@ def get_user_input():
 
     return iid, participation, Nc, J
 
-
-class DatasetSynthetic:
-    def __init__(self, alpha, beta, theta, iid_sol, iid_data, n_dim, n_clnt, n_cls, avg_data, name_prefix):
-        self.dataset = 'synt'
-        self.name  = name_prefix + '_'
-        self.name += '%d_%d_%d_%d_%f_%f_%f_%s_%s' %(n_dim, n_clnt, n_cls, avg_data,
-                alpha, beta, theta, iid_sol, iid_data)
-
-        data_path = 'Data'
-        if (not os.path.exists('%s/%s/' %(data_path, self.name))):
-            # Generate data
-            print('Sythetize')
-            data_x, data_y = generate_syn_logistic(dimension=n_dim, n_clnt=n_clnt, n_cls=n_cls, avg_data=avg_data,
-                                        alpha=alpha, beta=beta, theta=theta,
-                                        iid_sol=iid_sol, iid_dat=iid_data)
-            os.mkdir('%s/%s/' %(data_path, self.name))
-            np.save('%s/%s/data_x.npy' %(data_path, self.name), data_x)
-            np.save('%s/%s/data_y.npy' %(data_path, self.name), data_y)
-        else:
-            # Load data
-            print('Load')
-            data_x = np.load('%s/%s/data_x.npy' %(data_path, self.name), allow_pickle=True)
-            data_y = np.load('%s/%s/data_y.npy' %(data_path, self.name), allow_pickle=True)
-
-        for clnt in range(n_clnt):
-            print(', '.join(['%.4f' %np.mean(data_y[clnt]==t) for t in range(n_cls)]))
-
-        self.clnt_x = data_x
-        self.clnt_y = data_y
-
-        self.tst_x = np.concatenate(self.clnt_x, axis=0)
-        self.tst_y = np.concatenate(self.clnt_y, axis=0)
-        self.n_client = len(data_x)
-        print(self.clnt_x.shape)
 
 # Original prepration is from LEAF paper...
 # This loads Shakespeare dataset only.
@@ -314,28 +283,38 @@ class ShakespeareObjectCrop_noniid:
         self.tst_x = np.asarray(self.tst_x)
         self.tst_y = np.asarray(self.tst_y)
 
-class Dataset(torch.utils.data.Dataset):
+class ShakespeareDataset(torch.utils.data.Dataset):
 
-    def __init__(self, data_x, data_y=True, train=False, dataset_name=''):
-        self.name = dataset_name
-        if self.name == 'shakespeare':
+    def __init__(self, data_x, data_y=True, train=False):
+        self.X_data = data_x
+        self.y_data = data_y
 
-            self.X_data = data_x
-            self.y_data = data_y
-
-            self.X_data = torch.tensor(self.X_data).long()
-            if not isinstance(data_y, bool):
-                self.y_data = torch.tensor(self.y_data).float()
+        self.X_data = torch.tensor(self.X_data).long()
+        if not isinstance(data_y, bool):
+            self.y_data = torch.tensor(self.y_data).float()
 
 
     def __len__(self):
         return len(self.X_data)
 
     def __getitem__(self, idx):
-        if self.name == 'shakespeare':
-            x = self.X_data[idx]
-            y = self.y_data[idx]
-            return x, y
+        x = self.X_data[idx]
+        y = self.y_data[idx]
+        return x, y
 
+def select_clients_with_dirichlet(clients, fraction, alpha=1.0):
+    num_clients = len(clients)
+    num_selected_clients = int(np.ceil(num_clients * fraction))
 
-__all__ = ["get_dataset", "get_user_input", "DatasetSynthetic", "ShakespeareObjectCrop", "ShakespeareObjectCrop_noniid", "Dataset"]
+    # Generate Dirichlet probabilities
+    dirichlet_probs = np.random.dirichlet([alpha] * num_clients)
+
+    # Select clients based on the highest probabilities
+    selected_indices = np.argsort(dirichlet_probs)[-num_selected_clients:]
+
+    selected_clients = [clients[i] for i in selected_indices]
+
+    return selected_clients
+
+__all__ = ["get_dataset", "get_user_input", "ShakespeareObjectCrop",
+            "ShakespeareObjectCrop_noniid", "ShakespeareDataset", "select_clients_with_dirichlet"]

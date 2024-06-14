@@ -3,7 +3,6 @@ from utils.options import *
 from utils.get_functions import *
 from utils.update import *
 from utils.sampling import *
-from utils.exp_details import *
 from utils.average_weights import *
 import os
 import copy

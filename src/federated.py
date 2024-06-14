@@ -3,7 +3,6 @@ from utils.options import *
 from utils.data_utils import *
 from utils.update import *
 from utils.sampling import *
-from utils.exp_details import *
 from utils.average_weights import *
 import pandas as pd
 from utils.logger import Logger
@@ -15,7 +14,6 @@ from models import *
 import glob 
 import torch
 from utils.wandb_utils import *
-import pickle
 
 
 if __name__ == '__main__':
@@ -135,84 +133,86 @@ if __name__ == '__main__':
     print_every = args.print_every
 
     # Initialize tqdm with the starting epoch
-    with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
-        for epoch in range(start_epoch, args.epochs):
-            local_weights, local_losses = [], []
-            logger.info(f'\n\n| Global Training Round : {epoch+1} |')
+    if args.dataset == 'cifar':
+        with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
+            for epoch in range(start_epoch, args.epochs):
+                local_weights, local_losses = [], []
+                logger.info(f'\n\n| Global Training Round : {epoch+1} |')
 
-            global_model.train()
-            num_selected_clients = max(int(args.frac * args.num_users), 1)
+                global_model.train()
+                num_selected_clients = max(int(args.frac * args.num_users), 1)
 
-            if args.participation:
-                # Uniform participation
-                idxs_users = np.random.choice(range(args.num_users), num_selected_clients, replace=False)
-            else:
-                # Skewed participation
-                client_probabilities = np.random.dirichlet([args.gamma] * args.num_users)
-                idxs_users = np.random.choice(range(args.num_users), size=num_selected_clients, p=client_probabilities, replace=False)
-
-            for idx in idxs_users:
-                local_model = LocalUpdate(args=args, client_train=user_groups_train[idx], val_set=val_set)
-
-                w, loss = local_model.update_weights(
-                    model=copy.deepcopy(global_model), global_round=epoch)
-                local_weights.append(copy.deepcopy(w))
-                local_losses.append(copy.deepcopy(loss))
-
-            # Update global weights
-            global_weights = average_weights(local_weights)
-
-            # Update global model
-            global_model.load_state_dict(global_weights)
-
-            loss_avg = sum(local_losses) / len(local_losses)
-            train_loss.append(loss_avg)
-
-            global_model.eval()
-
-            if (epoch+1) % print_every == 0:
-                local_model = LocalUpdate(args=args, client_train=user_groups_train[idx], val_set=val_set)
-                acc, loss = local_model.inference(model=global_model)
-                train_accuracy.append(acc)
-                # Print global training loss after every 'print_every' rounds
-                metrics = metrics.append({'Round': epoch+1, 'Loss': loss_avg, 'Accuracy': acc}, ignore_index=True)
-                logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
-                logger.info(f'Training Loss : {np.mean(np.array(train_loss))}')
-                wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
-                logger.info('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
-
-            if (epoch+1) % print_every == 0:
-                # Save checkpoint
-                if args.iid:
-                    filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                if args.participation:
+                    # Uniform participation
+                    idxs_users = np.random.choice(range(args.num_users), num_selected_clients, replace=False)
                 else:
-                    filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                    # Skewed participation
+                    client_probabilities = np.random.dirichlet([args.gamma] * args.num_users)
+                    idxs_users = np.random.choice(range(args.num_users), size=num_selected_clients, p=client_probabilities, replace=False)
 
-                checkpoint = {
-                    'epoch': epoch + 1,
-                    'model_state_dict': global_model.state_dict(),
-                    'loss': train_loss,
-                    'train_accuracy': train_accuracy,
-                    'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
-                    'train_loss': train_loss
-                }
-                save_checkpoint(checkpoint, filename=filename)
+                for idx in idxs_users:
+                    local_model = LocalUpdate(args=args, client_train=user_groups_train[idx], val_set=val_set)
 
-                # Remove the previous checkpoint unless it's a multiple of the backup parameter
-                if (epoch + 1) > print_every:
-                    if (epoch + 1 -10) % args.backup != 0:
-                        prev_epoch = epoch + 1 - print_every
+                    w, loss = local_model.update_weights(
+                        model=copy.deepcopy(global_model), global_round=epoch)
+                    local_weights.append(copy.deepcopy(w))
+                    local_losses.append(copy.deepcopy(loss))
 
-                        if args.iid:
-                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
-                        else:
-                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
-                        if os.path.exists(prev_filename):
-                            os.remove(prev_filename)
+                # Update global weights
+                global_weights = average_weights(local_weights)
 
-            # Update the progress bar
-            pbar.update(1)
+                # Update global model
+                global_model.load_state_dict(global_weights)
 
+                loss_avg = sum(local_losses) / len(local_losses)
+                train_loss.append(loss_avg)
+
+                global_model.eval()
+
+                if (epoch+1) % print_every == 0:
+                    local_model = LocalUpdate(args=args, client_train=user_groups_train[idx], val_set=val_set)
+                    acc, loss = local_model.inference(model=global_model)
+                    train_accuracy.append(acc)
+                    # Print global training loss after every 'print_every' rounds'
+                    metrics.loc[len(metrics)] = [epoch+1, loss_avg, acc]
+                    logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
+                    logger.info(f'Training Loss : {np.mean(np.array(train_loss))}')
+                    wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
+                    logger.info('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
+
+                if (epoch+1) % print_every == 0:
+                    # Save checkpoint
+                    if args.iid:
+                        filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                    else:
+                        filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+
+                    checkpoint = {
+                        'epoch': epoch + 1,
+                        'model_state_dict': global_model.state_dict(),
+                        'loss': train_loss,
+                        'train_accuracy': train_accuracy,
+                        'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
+                        'train_loss': train_loss
+                    }
+                    save_checkpoint(checkpoint, filename=filename)
+
+                    # Remove the previous checkpoint unless it's a multiple of the backup parameter
+                    if (epoch + 1) > print_every:
+                        if (epoch + 1 -10) % args.backup != 0:
+                            prev_epoch = epoch + 1 - print_every
+
+                            if args.iid:
+                                prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                            else:
+                                prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                            if os.path.exists(prev_filename):
+                                os.remove(prev_filename)
+
+                # Update the progress bar
+                pbar.update(1)
+    else:
+        # Shakespeare dataset
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_set)
     metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
