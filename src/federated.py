@@ -100,7 +100,7 @@ if __name__ == '__main__':
             
 
             if args.checkpoint_resume == 1:
-                args.iid, args.participation, args.Nc, args.local_ep = last_user_input
+                # args.iid, args.participation, args.Nc, args.local_ep = last_user_input
                 global_model = CIFARLeNet() if args.dataset == 'cifar' else ShakespeareLSTM(args=args)
                 global_model.to(device)
                 global_model.load_state_dict(checkpoint['model_state_dict'])
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     global_weights = global_model.state_dict()
 
     # Training
-    train_loss, train_accuracy = [], []
+    train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy = [], [], [], [], [], []
     print_every = args.print_every
 
     # Initialize tqdm with the starting epoch
@@ -170,13 +170,25 @@ if __name__ == '__main__':
                 global_model.eval()
 
                 if (epoch+1) % print_every == 0:
-                    acc, loss = test_inference(args, global_model, val_set)
-                    train_accuracy.append(acc)
+                    train_acc, train_loss = test_inference(args, global_model, train_set)
+                    val_acc, val_loss = test_inference(args, global_model, val_set)
+                    test_acc, test_loss = test_inference(args, global_model, test_set)
+                    train_accuracy.append(train_acc)
+                    val_accuracy.append(val_acc)
+                    test_accuracy.append(test_acc)
                     # Print global training loss after every 'print_every' rounds'
-                    metrics.loc[len(metrics)] = [epoch+1, loss_avg, acc]
+                    metrics.loc[len(metrics)] = [epoch+1, train_acc, val_acc, test_acc, np.mean(np.array(train_loss)), np.mean(np.array(val_loss)), np.mean(np.array(test_loss))]
                     logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                     logger.info(f'Training Loss : {np.mean(np.array(train_loss))}')
-                    wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
+                    wandb_logger.log({
+                        'Train Loss': np.mean(np.array(train_loss)), 
+                        'Val Loss': np.mean(np.array(val_loss)),
+                        'Test Loss': np.mean(np.array(test_loss)),
+                        'Train Accuracy': 100*train_accuracy[-1],
+                        'Val Accuracy': 100*val_accuracy[-1],
+                        'Test Accuracy': 100*test_accuracy[-1],
+                        'Round': epoch+1
+                        })
                     logger.info('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
                 if (epoch+1) % print_every == 0:
@@ -192,7 +204,11 @@ if __name__ == '__main__':
                         'loss': train_loss,
                         'train_accuracy': train_accuracy,
                         'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
-                        'train_loss': train_loss
+                        'train_loss': train_loss,
+                        'val_accuracy': val_accuracy,
+                        'test_accuracy': test_accuracy,
+                        'test_loss': test_loss,
+                        'val_loss': val_loss
                     }
                     save_checkpoint(checkpoint, filename=filename)
 
@@ -212,6 +228,7 @@ if __name__ == '__main__':
                 pbar.update(1)
     else:
         # Shakespeare dataset
+        print('not done yet')
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_set)
     metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
