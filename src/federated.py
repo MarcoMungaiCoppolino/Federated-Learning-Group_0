@@ -51,7 +51,8 @@ if __name__ == '__main__':
         logger.info(f"Running can be found at: {wandb_logger.get_execution_link()}")
     logger.info("######################")
     logger.info("######################")
-    metrics = pd.DataFrame(columns=['Round', 'Loss', 'Accuracy'])
+                    
+    metrics = pd.DataFrame(columns=['Round', 'Train Accuracy', 'Val Accuracy', 'Test Accuracy', 'Train Loss', 'Val Loss', 'Test Loss'])
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
