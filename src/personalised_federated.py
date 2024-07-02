@@ -51,8 +51,7 @@ if __name__ == '__main__':
         logger.info(f"Running can be found at: {wandb_logger.get_execution_link()}")
     logger.info("######################")
     logger.info("######################")
-                    
-    metrics = pd.DataFrame(columns=['Round', 'Train Accuracy', 'Val Accuracy', 'Test Accuracy', 'Train Loss', 'Val Loss', 'Test Loss'])
+    metrics = pd.DataFrame(columns=['Round', 'Loss', 'Accuracy'])
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -130,7 +129,7 @@ if __name__ == '__main__':
     global_weights = global_model.state_dict()
 
     # Training
-    train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy = [], [], [], [], [], []
+    train_loss, train_accuracy = [], []
     print_every = args.print_every
 
     # Initialize tqdm with the starting epoch
@@ -152,6 +151,7 @@ if __name__ == '__main__':
                     idxs_users = np.random.choice(range(args.num_users), size=num_selected_clients, p=client_probabilities, replace=False)
 
                 for idx in idxs_users:
+
                     local_model = LocalUpdate(args=args, client_train=user_groups_train[idx], val_set=val_set)
 
                     w, loss = local_model.update_weights(
@@ -171,30 +171,14 @@ if __name__ == '__main__':
                 global_model.eval()
 
                 if (epoch+1) % print_every == 0:
-                    train_acc, t_loss = test_inference(args, global_model, train_set)
-                    val_acc, val_loss = test_inference(args, global_model, val_set)
-                    test_acc, test_loss = test_inference(args, global_model, test_set)
-                    train_accuracy.append(train_acc)
-                    val_accuracy.append(val_acc)
-                    test_accuracy.append(test_acc)
+                    acc, loss = test_inference(args, global_model, val_set)
+                    train_accuracy.append(acc)
                     # Print global training loss after every 'print_every' rounds'
-                    metrics.loc[len(metrics)] = [epoch+1, train_acc, val_acc, test_acc, t_loss, val_loss, test_loss]
+                    metrics.loc[len(metrics)] = [epoch+1, loss_avg, acc]
                     logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
-                    logger.info(f'Training Loss : {t_loss}')
+                    logger.info(f'Training Loss : {np.mean(np.array(train_loss))}')
+                    wandb_logger.log({'Loss': np.mean(np.array(train_loss)), 'Round': epoch+1, 'Accuracy': 100*train_accuracy[-1]})
                     logger.info('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
-                    logger.info(f'Validation Loss : {val_loss}')
-                    logger.info('Validation Accuracy: {:.2f}% \n'.format(100*val_accuracy[-1]))
-                    logger.info(f'Test Loss : {test_loss}')
-                    logger.info('Test Accuracy: {:.2f}% \n'.format(100*test_accuracy[-1]))
-                    wandb_logger.log({
-                        'Train Loss': t_loss, 
-                        'Val Loss': val_loss,
-                        'Test Loss': test_loss,
-                        'Train Accuracy': 100 * train_accuracy[-1],
-                        'Val Accuracy': 100 * val_accuracy[-1],
-                        'Test Accuracy': 100 * test_accuracy[-1],
-                        'Round': epoch + 1
-                        })
 
                 if (epoch+1) % print_every == 0:
                     # Save checkpoint
@@ -209,11 +193,7 @@ if __name__ == '__main__':
                         'loss': train_loss,
                         'train_accuracy': train_accuracy,
                         'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
-                        'train_loss': train_loss,
-                        'val_accuracy': val_accuracy,
-                        'test_accuracy': test_accuracy,
-                        'test_loss': test_loss,
-                        'val_loss': val_loss
+                        'train_loss': train_loss
                     }
                     save_checkpoint(checkpoint, filename=filename)
 
@@ -233,7 +213,6 @@ if __name__ == '__main__':
                 pbar.update(1)
     else:
         # Shakespeare dataset
-        print('not done yet')
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_set)
     metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
