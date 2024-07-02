@@ -14,7 +14,7 @@ class LocalUpdate(object):
     #def train_val_test(self, dataset, idxs):
     def data_loaders(self, client_train, val_set):
         """
-        Returns train, validation and test dataloaders for a given dataset
+        Returns train and validation dataloaders for a given dataset
         and user indexes.
         """
 
