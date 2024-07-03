@@ -32,8 +32,7 @@ if [ -n "$wandb_key" ]; then
         --local_ep 4 \
         --participation 1 \
         --logfile "$logfile" \
-        --metrics_dir "$metrics_dir" \
-        --print_every 1
+        --metrics_dir "$metrics_dir"
 else
     python3 "$python_script" \
         --dataset cifar \
@@ -44,7 +43,5 @@ else
         --local_ep 4 \
         --participation 1 \
         --logfile "$logfile" \
-        --metrics_dir "$metrics_dir" \
-        --print_every 1
-
+        --metrics_dir "$metrics_dir"
 fi

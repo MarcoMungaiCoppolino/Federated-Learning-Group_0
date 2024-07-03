@@ -1,5 +1,4 @@
 import torch.nn as nn
-import torch.nn.functional as F
 
 class CIFARLeNet(nn.Module):
     """
@@ -24,25 +23,45 @@ class CIFARLeNet(nn.Module):
     """
 
     def __init__(self):
+        """
+        Initialize the CIFARLeNet model with its layers.
+        """
         super(CIFARLeNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=2)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=1, padding=2)
-        self.fc1 = nn.Linear(64 * 8 * 8, 384)
-        self.dropout1 = nn.Dropout(p=0.5)  # Dropout layer after the first fully connected layer
+        self.flatten = nn.Flatten()
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=5)
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=5)
+        self.pool = nn.MaxPool2d(2)
+        self.fc1 = nn.Linear(64 * 5 * 5, 384)
         self.fc2 = nn.Linear(384, 192)
-        self.dropout2 = nn.Dropout(p=0.5)  # Dropout layer after the second fully connected layer
-        self.fc3 = nn.Linear(192, 100)  # 100 output classes for CIFAR-100
+        self.fc3 = nn.Linear(192, 100)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))  # First conv + ReLU + MaxPool
-        x = self.pool(F.relu(self.conv2(x)))  # Second conv + ReLU + MaxPool
-        x = x.view(-1, 64 * 8 * 8)           # Flatten
-        x = F.relu(self.fc1(x))              # First fully connected layer + ReLU
-        x = self.dropout1(x)                 # Apply dropout after the first fully connected layer
-        x = F.relu(self.fc2(x))              # Second fully connected layer + ReLU
-        x = self.dropout2(x)                 # Apply dropout after the second fully connected layer
-        x = self.fc3(x)                      # Output layer
+        """
+        Defines the forward pass of the model.
+
+        Parameters:
+        ----------
+        x : torch.Tensor
+            The input tensor.
+
+        Returns:
+        -------
+        torch.Tensor
+            The output tensor after applying all the layers.
+        """
+        x = self.conv1(x)
+        x = nn.functional.relu(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = nn.functional.relu(x)
+        x = self.pool(x)
+        x = x.view(-1, 64 * 5 * 5)
+        x = self.fc1(x)
+        x = nn.functional.relu(x)
+        x = self.fc2(x)
+        x = nn.functional.relu(x)
+        x = self.fc3(x)
+        x = nn.functional.log_softmax(x, dim=1)
         return x
 
 
