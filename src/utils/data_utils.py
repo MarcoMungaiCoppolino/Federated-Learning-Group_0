@@ -1,4 +1,3 @@
-import torch
 from torchvision import datasets, transforms
 from utils.sampling import *
 
@@ -21,7 +20,7 @@ def get_dataset(args):
         test_dataset = datasets.CIFAR100(data_dir, train=False, download=True,
                                       transform=transform_test)
         if args.iid:
-            # Sample IID user data from Mnist
+            # Sample IID user data from CIFAR100
             user_groups_train = cifar_iid(train_dataset, args.num_users)
         else:
             user_groups_train = cifar_noniid(train_dataset, args.num_users, args.Nc)

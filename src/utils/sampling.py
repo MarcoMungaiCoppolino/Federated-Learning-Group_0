@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 
+
 class Client:
     def __init__(self, client_id, train_dataset, indices, batch_size=64):
         self.client_id = client_id
@@ -38,13 +39,13 @@ class Client:
 
 def cifar_iid(dataset, num_clients):
     # Number of classes in the dataset
-    num_classes = len(dataset.dataset.classes)
+    num_classes = len(dataset.classes)
 
     # Create a list to store indices for each class
     class_indices = [[] for _ in range(num_classes)]
 
     # Populate class_indices with the indices of each class
-    for idx, target in enumerate(dataset.dataset.targets):
+    for idx, target in enumerate(dataset.targets):
         class_indices[target].append(idx)
 
     # Shuffle indices within each class
@@ -53,27 +54,20 @@ def cifar_iid(dataset, num_clients):
 
     # Calculate the number of samples per client per class
     samples_per_client_per_class = len(dataset) // (num_clients * num_classes)
-    # Initialize the list of shards
-    # a shard is the portion of the dataset belonging to one of the client
-    # we separate each shard in 2 portions:
-    # - one will be the actual subset of the dataset used for training
-    # - the other will be used to create the validation dataset
-    train_shards_indices = [[] for clients in range(num_clients)]
 
+    # Initialize the list of client objects
+    clients = []
 
     # Distribute the samples uniformly to the clients
-    for class_idx in range(num_classes):
-        class_indices_for_class = class_indices[class_idx]
+    for client_id in range(num_clients):
+        client_indices = []
+        for class_indices_for_class in class_indices:
+            client_indices.extend(class_indices_for_class[client_id * samples_per_client_per_class : (client_id + 1) * samples_per_client_per_class])
+        
+        client = Client(client_id, dataset, client_indices)
+        clients.append(client)
 
-        for client_idx in range(num_clients):
-            start_idx = client_idx * int(samples_per_client_per_class)
-            end_idx = (client_idx + 1) * int(samples_per_client_per_class)
-            train_shards_indices[client_idx].extend(class_indices_for_class[start_idx:end_idx])
-
-    # Create subsets for each client
-    return [Client(client_id, train_dataset=client_data, indices=range(len(client_data))) for client_id, client_data in enumerate(class_idx)]
-
-
+    return clients
 
 
 def cifar_noniid(dataset, num_clients, Nc):
@@ -84,7 +78,6 @@ def cifar_noniid(dataset, num_clients, Nc):
         random.shuffle(first_clients)
         for i in range(num_classes):
             class_clients[i].add(first_clients[i])
-
 
         for j in range(1,Nc):
             class_list = list(range(num_classes))
@@ -100,7 +93,7 @@ def cifar_noniid(dataset, num_clients, Nc):
 
         return class_clients
 
-    num_classes = len(dataset.dataset.classes)
+    num_classes = len(dataset.classes)
 
     error = True
     while error:
@@ -110,36 +103,37 @@ def cifar_noniid(dataset, num_clients, Nc):
         except Exception as e:
             print("Sharding Invalid, trying again...")
 
-
     # Create a list to store indices for each class
     class_indices = [[] for _ in range(num_classes)]
 
     # Populate class_indices with the indices of each class
-    for idx, target in enumerate(dataset.dataset.targets):
+    for idx, target in enumerate(dataset.targets):
         class_indices[target].append(idx)
 
     # Shuffle indices within each class
     for indices in class_indices:
         np.random.shuffle(indices)
 
-    train_shards_indices = [[] for clients in range(num_clients)]
+    # Initialize the list of client objects
+    clients = []
+
+    # Distribute the samples according to non-IID setting
     samples_per_client_per_class = len(dataset) // (Nc * num_classes)
+    for client_id in range(num_clients):
+        train_shards_indices = []
+        for class_idx in range(num_classes):
+            class_indices_for_class = class_indices[class_idx]
+            clients = class_clients[class_idx].copy()
+            for client_idx in range(Nc):
+                client = random.choice(list(clients))
+                clients.remove(client)
 
-    # Distribute the samples uniformly to the clients
-    for class_idx in range(num_classes):
-        class_indices_for_class = class_indices[class_idx]
-        clients = class_clients[class_idx].copy()
-        for client_idx in range(Nc):
-        #for client in class_clients[class_idx]:
-            client = random.choice(list(clients))
-            clients.remove(client)
+                start_idx = client_idx * int(samples_per_client_per_class)
+                end_idx = (client_idx + 1) * int(samples_per_client_per_class)
+                train_shards_indices.extend(class_indices_for_class[start_idx:end_idx])
 
-            start_idx = client_idx * int(samples_per_client_per_class)
-            end_idx = (client_idx + 1) * int(samples_per_client_per_class)
-            train_shards_indices[client].extend(class_indices_for_class[start_idx:end_idx])
+        client = Client(client_id, dataset, train_shards_indices)
+        clients.append(client)
 
-    # Create subsets for each client
-    return [Client(client_id, train_dataset=client_data, indices=range(len(client_data))) for client_id, client_data in enumerate(class_idx)]
-
-
+    return clients
 __all__ = ['cifar_iid', 'cifar_noniid']
