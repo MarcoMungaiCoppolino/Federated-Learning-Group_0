@@ -1,5 +1,7 @@
 import torch
 import os
+from torch.utils.data import DataLoader
+
 
 
 def load_checkpoint(filename):
@@ -24,13 +26,13 @@ def initialize_hidden_state(num_layers, hidden_size, batch_size):
 def save_checkpoint(state, filename="checkpoint.pth.tar"):
     torch.save(state, filename)
 
-def inference(model, dataloader, criterion):
+def inference(model, test_set, criterion, args):
     model.eval()
-    correct = 0
-    total = 0
-    test_loss = 0
+    correct, total, test_loss = 0.0, 0.0, 0.0
+    testloader = DataLoader(test_set, batch_size=args.local_bs,
+                            shuffle=False)
     with torch.no_grad():
-        for batch_idx, (inputs, labels) in enumerate(dataloader):
+        for batch_idx, (inputs, labels) in enumerate(testloader):
             inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -39,7 +41,7 @@ def inference(model, dataloader, criterion):
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    test_loss = test_loss / len(dataloader)
+    test_loss = test_loss / len(testloader)
     accuracy = correct / total
     return accuracy, test_loss
 

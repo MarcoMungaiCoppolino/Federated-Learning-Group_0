@@ -59,6 +59,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
             start_epoch = 0
     else:
         start_epoch = 0
+    wandb_logger.watch(global_model)
     with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
         for epoch in range(start_epoch, args.epochs):
             logger.info(f'\n\n| Global Training Round : {epoch+1} |')
@@ -84,21 +85,21 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                 local_model = idx.train(local_model, criterion, optimizer, args.local_ep)
                 user_weights.append([param.clone().detach() for param in local_model.parameters()])
 
-                aggregated_weights = []
-                for weights_list in zip(*user_weights):
-                    aggregated_weight = torch.mean(torch.stack(weights_list), dim=0)
-                    aggregated_weights.append(aggregated_weight)
-                update_weights(global_model, aggregated_weights)
-                if (epoch+1) % args.print_every == 0:
-                    acc, loss = inference(global_model, test_set, criterion)
-                    metrics.loc[len(metrics)] = [epoch+1, acc, loss]
-                    logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
-                    logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
-                    wandb_logger.log_metrics({
-                            'Test Loss': loss,
-                            'Test Accuracy': acc * 100,
-                            'Round': epoch + 1
-                        })
+            aggregated_weights = []
+            for weights_list in zip(*user_weights):
+                aggregated_weight = torch.mean(torch.stack(weights_list), dim=0)
+                aggregated_weights.append(aggregated_weight)
+            update_weights(global_model, aggregated_weights)
+            if (epoch+1) % args.print_every == 0:
+                acc, loss = inference(global_model, test_set, criterion,args)
+                metrics.loc[len(metrics)] = [epoch+1, acc, loss]
+                logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
+                logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
+                wandb_logger.log({
+                        'Test Loss': loss,
+                        'Test Accuracy': acc * 100,
+                        'Round': epoch + 1
+                    })
             if (epoch+1) % args.print_every == 0:
                     # Save checkpoint
                     if args.iid:
