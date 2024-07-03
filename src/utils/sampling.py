@@ -1,7 +1,40 @@
 import random
 import numpy as np
 import torch
-from torch.utils.data import Subset, Dataset
+from torch.utils.data import DataLoader, Subset
+
+
+class Client:
+    def __init__(self, client_id, train_dataset, indices, batch_size=64):
+        self.client_id = client_id
+        self.train_dataset = train_dataset
+        self.indices = indices
+        self.batch_size = batch_size
+        self.train_dataloader = self.create_dataloader()
+
+    def create_dataloader(self):
+        subset = Subset(self.train_dataset, self.indices)
+        dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
+        return dataloader
+
+    def train(self, model, criterion, optimizer, local_steps=4):
+        self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
+
+        model.train()
+        step_count = 0  # Initialize step counter
+        while step_count < local_steps:  # Loop until local steps are reached
+            for inputs, labels in self.train_dataloader:
+                inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                step_count += 1
+                if step_count >= local_steps:  # Exit if local steps are reached
+                    break
+        return model
+
 
 def cifar_iid(dataset, num_clients):
     # Number of classes in the dataset
@@ -38,33 +71,10 @@ def cifar_iid(dataset, num_clients):
             train_shards_indices[client_idx].extend(class_indices_for_class[start_idx:end_idx])
 
     # Create subsets for each client
-    client_subsets = [Subset(dataset.dataset, train_shard_indices) for train_shard_indices in train_shards_indices]
-
-    return client_subsets
+    return [Client(client_id, train_dataset=client_data, indices=range(len(client_data))) for client_id, client_data in enumerate(class_idx)]
 
 
-def stratified_split(dataset, val_split=0.2):
-    targets = torch.tensor(dataset.targets)
-    train_indices = []
-    val_indices = []
 
-    num_classes = len(dataset.classes)
-
-    for class_idx in range(num_classes):
-        class_indices = torch.where(targets == class_idx)[0]
-
-        num_class_samples = len(class_indices)
-        num_val_samples = int(num_class_samples * val_split)
-        num_train_samples = num_class_samples - num_val_samples
-
-        class_indices = class_indices[torch.randperm(len(class_indices))]
-        train_indices.extend(class_indices[:num_train_samples])
-        val_indices.extend(class_indices[num_train_samples:])
-
-    train_subset = Subset(dataset, train_indices)
-    val_subset = Subset(dataset, val_indices)
-
-    return train_subset, val_subset
 
 def cifar_noniid(dataset, num_clients, Nc):
     def class_clients_sharding(num_classes, Nc):
@@ -129,9 +139,7 @@ def cifar_noniid(dataset, num_clients, Nc):
             train_shards_indices[client].extend(class_indices_for_class[start_idx:end_idx])
 
     # Create subsets for each client
-    client_subsets = [Subset(dataset.dataset, train_shard_indices) for train_shard_indices in train_shards_indices]
+    return [Client(client_id, train_dataset=client_data, indices=range(len(client_data))) for client_id, client_data in enumerate(class_idx)]
 
 
-    return client_subsets
-
-__all__ = ['cifar_iid', 'cifar_noniid', 'stratified_split']
+__all__ = ['cifar_iid', 'cifar_noniid']
