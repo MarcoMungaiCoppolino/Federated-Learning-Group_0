@@ -90,6 +90,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                 aggregated_weight = torch.mean(torch.stack(weights_list), dim=0)
                 aggregated_weights.append(aggregated_weight)
             update_weights(global_model, aggregated_weights)
+            
             if (epoch+1) % args.print_every == 0:
                 acc, loss = inference(global_model, test_set, criterion,args)
                 metrics.loc[len(metrics)] = [epoch+1, acc, loss]
