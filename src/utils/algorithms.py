@@ -60,6 +60,10 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
     else:
         start_epoch = 0
     wandb_logger.watch(global_model)
+    dirichlet_probs = np.random.dirichlet([args.gamma] * len(user_groups_train))
+    for client in len(user_groups_train):
+        print(f'Client {client} has a probability of {dirichlet_probs[client]}')
+
     with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
         for epoch in range(start_epoch, args.epochs):
             logger.info(f'\n\n| Global Training Round : {epoch+1} |')
@@ -68,12 +72,11 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
             if args.participation:
                 idx_users  = np.random.choice(user_groups_train, int(len(user_groups_train) * args.frac), p=None)
             else:
-                dirichlet_probs = np.random.dirichlet([args.gamma] * len(user_groups_train))
                 idx_users = np.random.choice(user_groups_train, int(len(user_groups_train) * args.frac), p=dirichlet_probs)
 
             for user in idx_users:
                 clients_distribs[user.client_id] = 1
-
+            print(clients_distribs)
             user_weights = []
             for idx in idx_users:
                 if args.dataset == 'cifar':
@@ -132,3 +135,4 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
     metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
     logger.inf(f"Metrics saved at {args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
     logger.info("Training Done!")
+

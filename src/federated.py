@@ -6,7 +6,7 @@ from utils.wandb_utils import WandbLogger
 import pandas as pd
 import os
 from models import *
-from utils.federated import fedAVG
+from utils.algorithms import fedAVG
 
 if __name__ == '__main__':
     args = args_parser()
@@ -47,5 +47,5 @@ if __name__ == '__main__':
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss().to(device)
         fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set)
