@@ -33,7 +33,8 @@ def inference(model, test_set, criterion, args):
                             shuffle=False)
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(testloader):
-            inputs, labels = inputs.cuda(), labels.cuda() if args.device == 'cuda' else  inputs, labels # Move data to CUDA
+            if args.device == 'cuda':
+                inputs, labels = inputs.cuda(), labels.cuda() 
             outputs = model(inputs)
             loss = criterion(outputs, labels)
 

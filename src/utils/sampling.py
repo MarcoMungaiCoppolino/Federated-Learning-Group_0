@@ -25,7 +25,8 @@ class Client:
         step_count = 0  # Initialize step counter
         while step_count < args.local_ep:  # Loop until local steps are reached
             for inputs, labels in self.train_dataloader:
-                inputs, labels = inputs.cuda(), labels.cuda() if args.device == 'cuda' else  inputs, labels  # Move data to CUDA
+                if args.device == 'cuda':
+                    inputs, labels = inputs.cuda(), labels.cuda() 
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
