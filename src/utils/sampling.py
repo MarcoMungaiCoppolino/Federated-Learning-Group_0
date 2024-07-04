@@ -18,21 +18,21 @@ class Client:
         dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
         return dataloader
 
-    def train(self, model, criterion, optimizer, local_steps=4):
+    def train(self, model, criterion, optimizer,args):
         self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
 
         model.train()
         step_count = 0  # Initialize step counter
-        while step_count < local_steps:  # Loop until local steps are reached
+        while step_count < args.local_ep:  # Loop until local steps are reached
             for inputs, labels in self.train_dataloader:
-                inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
+                inputs, labels = inputs.to(args.device), labels.cuda(args.device)  # Move data to CUDA
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
                 step_count += 1
-                if step_count >= local_steps:  # Exit if local steps are reached
+                if step_count >= args.local_ep:  # Exit if local steps are reached
                     break
         return model
 

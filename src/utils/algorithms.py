@@ -61,8 +61,8 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
         start_epoch = 0
     wandb_logger.watch(global_model)
     dirichlet_probs = np.random.dirichlet([args.gamma] * len(user_groups_train))
-    for client in len(user_groups_train):
-        print(f'Client {client} has a probability of {dirichlet_probs[client]}')
+    for client in user_groups_train:
+        print(f'Client {client.client_id} has a probability of {dirichlet_probs[client.client_id]}')
 
     with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
         for epoch in range(start_epoch, args.epochs):
@@ -85,7 +85,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                     local_model = CharLSTM().to(device)
                 update_weights(local_model, global_weights)
                 optimizer = optim.SGD(local_model.parameters(), lr=args.lr, weight_decay=4e-3)
-                local_model = idx.train(local_model, criterion, optimizer, args.local_ep)
+                local_model = idx.train(local_model, criterion, optimizer, args)
                 user_weights.append([param.clone().detach() for param in local_model.parameters()])
 
             aggregated_weights = []
