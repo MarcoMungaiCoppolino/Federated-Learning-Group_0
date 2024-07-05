@@ -25,7 +25,7 @@ if [ -n "$wandb_key" ]; then
         --epochs 2000 \
         --data_dir "$data_dir" \
         $gpu_arg \
-        -- checkpoint_path "$checkpoint_path" \
+        --checkpoint_path "$checkpoint_path" \
         --wandb_key "$wandb_key" \
         --wandb_username "$wandb_username" \
         --wandb_project Federated_Learning \
@@ -39,7 +39,7 @@ else
         --dataset cifar \
         --iid 1 \
         --epochs 2000 \
-        -- checkpoint_path "$checkpoint_path" \
+        --checkpoint_path "$checkpoint_path" \
         --data_dir "$data_dir" \
         $gpu_arg \
         --local_ep 4 \

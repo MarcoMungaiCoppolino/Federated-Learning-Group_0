@@ -36,7 +36,7 @@ for gamma in "${gammas[@]}"; do
             --wandb_project Federated_Learning \
             --wandb_run_name "federated_cifar_100_iid_2000_skewed_gamma_${gamma}" \
             --local_ep 4 \
-            -- checkpoint_path "$checkpoint_path" \
+            --checkpoint_path "$checkpoint_path" \
             --participation 0 \
             --logfile "$logfile" \
             --metrics_dir "$metrics_dir" \
@@ -46,7 +46,7 @@ for gamma in "${gammas[@]}"; do
             --dataset cifar \
             --iid 1 \
             --epochs 2000 \
-            -- checkpoint_path "$checkpoint_path" \
+            --checkpoint_path "$checkpoint_path" \
             --data_dir "$data_dir" \
             $gpu_arg \
             --local_ep 4 \
