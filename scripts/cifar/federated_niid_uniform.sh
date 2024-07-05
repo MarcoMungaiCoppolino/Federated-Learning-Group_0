@@ -1,44 +1,50 @@
 #!/bin/bash
 
-# Check if GPU is available
-if command -v nvidia-smi &> /dev/null
-then
-    GPU=0
-else
-    GPU=-1
-fi
+wandb_key="$1"  # First argument is the Wandb key
+wandb_username="$2"  # Second argument is the Wandb username
 
-# Set wandb parameters if available
-WANDB_USERNAME=${1:-}
-WANDB_KEY=${2:-}
+# Set other variables as needed
+python_script="/content/Federated-Learning-Group_0/src/federated.py"
+data_dir="/content/drive/MyDrive/MLDL/cifar/data"
+checkpoint_path="/content/drive/MyDrive/MLDL/cifar/checkpoints"
+logfile_base="/content/drive/MyDrive/MLDL/cifar/logs/federated_cifar_100_noniid_uniform"
+metrics_dir="/content/drive/MyDrive/MLDL/cifar/metrics"
+
+# Check if GPU is available (using nvidia-smi command to check)
+if nvidia-smi &> /dev/null; then
+    gpu_arg="--gpu 0"
+else
+    gpu_arg=""
+fi
 
 # Loop over the combinations of j and nc
 for j in 4 8 16
 do
     for nc in 1 5 10 50
     do
-        name="federated_cifar_100_noniid_j=${j}_nc=${nc}"
-        logfile="/content/drive/MyDrive/MLDL/cifar/logs/${name}.log"
+        name="federated_cifar_100_noniid_uniform_j=${j}_nc=${nc}"
+        logfile="${logfile_base}_j=${j}_nc=${nc}.log"
         
         # Base command
-        CMD="python3 /content/Federated-Learning-Group_0/src/federated.py \
+        CMD="python3 $python_script \
             --dataset cifar \
             --epochs 2000 \
-            --data_dir /content/drive/MyDrive/MLDL/cifar/data \
+            --data_dir $data_dir \
             --local_ep $j \
             --Nc $nc \
             --participation 1 \
-            --logfile $logfile"
+            --logfile $logfile \
+            --metrics_dir $metrics_dir"
         
         # Add GPU parameter if GPU is available
-        if [ "$GPU" -ne -1 ]; then
-            CMD="$CMD --gpu $GPU"
+        if [ -n "$gpu_arg" ]; then
+            CMD="$CMD $gpu_arg"
         fi
 
         # Add wandb parameters if they are provided
-        if [ -n "$WANDB_USERNAME" ] && [ -n "$WANDB_KEY" ]; then
-            CMD="$CMD --wandb_key $WANDB_KEY \
-                --wandb_username $WANDB_USERNAME \
+        if [ -n "$wandb_key" ] && [ -n "$wandb_username" ]; then
+            CMD="$CMD --wandb_key $wandb_key \
+                --wandb_username $wandb_username \
                 --wandb_project Federated_Learning \
                 --wandb_run_name $name"
         fi

@@ -116,7 +116,7 @@ def cifar_noniid(dataset, num_clients, Nc):
         np.random.shuffle(indices)
 
     # Initialize the list of client objects
-    clients = []
+    clients_list = []
 
     # Distribute the samples according to non-IID setting
     samples_per_client_per_class = len(dataset) // (Nc * num_classes)
@@ -134,8 +134,8 @@ def cifar_noniid(dataset, num_clients, Nc):
                 train_shards_indices.extend(class_indices_for_class[start_idx:end_idx])
 
         client = Client(client_id, dataset, train_shards_indices)
-        clients.append(client)
+        clients_list.append(client)
 
-    return clients
+    return clients_list
 
 __all__ = ['cifar_iid', 'cifar_noniid']
