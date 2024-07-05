@@ -148,13 +148,13 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
         plt.title(f'Clients distribution (gamma={args.gamma})')
         
     # Save the plot as a PDF file
-    plt.savefig(f'${args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pdf')
+    plt.savefig(f'{args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pdf')
 
     # Optionally, clear the figure to free up memory
     plt.clf()
 
     pbar.update(1)
     metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
-    logger.inf(f"Metrics saved at {args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
+    logger.info(f"Metrics saved at {args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
     logger.info("Training Done!")
 

@@ -33,6 +33,7 @@ do
             # Base command
             CMD="python3 $python_script \
                 --dataset cifar \
+                -- checkpoint_path $checkpoint_path \
                 --epochs 2000 \
                 --data_dir $data_dir \
                 --local_ep $j \
