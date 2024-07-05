@@ -148,13 +148,35 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
         plt.title(f'Clients distribution (gamma={args.gamma})')
         
     # Save the plot as a PDF file
-    plt.savefig(f'{args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pdf')
+    if args.iid:
+        if args.participation:
+            plot_location = f'{args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}.pdf'
+        else:
+            plot_location = f'{args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.gamma}.pdf'
+    else:
+        if args.participation:
+            plot_location = f'{args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pdf'
+        else:
+            plot_location = f'{args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pdf'
+    plt.savefig(plot_location)
 
     # Optionally, clear the figure to free up memory
     plt.clf()
 
     pbar.update(1)
-    metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
-    logger.info(f"Metrics saved at {args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
+    if args.iid:
+        if args.participation:
+            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}.pkl"
+        else:
+            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.gamma}.pkl"
+    else:
+        if args.participation:
+            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pkl"
+        else:
+            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
+
+    metrics.to_pickle(pickle_file)
+    logger.info(f"Metrics saved at {pickle_file}")
+    logger.info(f"Plots saved at {plot_location}")
     logger.info("Training Done!")
 
