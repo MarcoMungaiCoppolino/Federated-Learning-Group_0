@@ -18,16 +18,17 @@ do
     for nc in 1 5 10 50
     do
         name="federated_cifar_100_noniid_j=${j}_nc=${nc}"
+        logfile="/content/drive/MyDrive/MLDL/cifar/logs/${name}.log"
         
         # Base command
-        CMD="python3 Federated-Learning-Group_0/src/federated.py \
+        CMD="python3 /content/Federated-Learning-Group_0/src/federated.py \
             --dataset cifar \
             --epochs 2000 \
             --data_dir /content/drive/MyDrive/MLDL/cifar/data \
             --local_ep $j \
             --Nc $nc \
             --participation 1 \
-            --logfile $name"
+            --logfile $logfile"
         
         # Add GPU parameter if GPU is available
         if [ "$GPU" -ne -1 ]; then

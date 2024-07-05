@@ -137,4 +137,5 @@ def cifar_noniid(dataset, num_clients, Nc):
         clients.append(client)
 
     return clients
+
 __all__ = ['cifar_iid', 'cifar_noniid']
