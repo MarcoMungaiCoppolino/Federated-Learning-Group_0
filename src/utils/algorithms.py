@@ -6,6 +6,7 @@ import torch.optim as optim
 from models import *
 from tqdm import tqdm
 import os
+import matplotlib.pyplot as plt
 
 
 def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set):
@@ -62,7 +63,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
     wandb_logger.watch(global_model)
     dirichlet_probs = np.random.dirichlet([args.gamma] * len(user_groups_train))
     for client in user_groups_train:
-        print(f'Client {client.client_id} has a probability of {dirichlet_probs[client.client_id]}')
+        logger.info(f'Client {client.client_id} has a probability of {dirichlet_probs[client.client_id]}')
 
     with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
         for epoch in range(start_epoch, args.epochs):
@@ -76,7 +77,6 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
 
             for user in idx_users:
                 clients_distribs[user.client_id] = 1
-            print(clients_distribs)
             user_weights = []
             for idx in idx_users:
                 if args.dataset == 'cifar':
@@ -131,6 +131,27 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                                 prev_filename = f"{args.checkpoint_path}/checkpoint_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
                             if os.path.exists(prev_filename):
                                 os.remove(prev_filename)
+            # Plot the frequency of client selection
+            plt.figure(figsize=(10, 6))
+
+            # Normalize the selection counts
+            normalized_counts = [count / sum(clients_distribs.values()) for count in clients_distribs.values()]
+
+            # Create the bar plot
+            plt.bar(clients_distribs.keys(), normalized_counts)
+            plt.xlabel('Client ID')
+            plt.ylabel('Relative frequency')
+            if args.participation:  
+                plt.title(f'Clients distribution (random selection)')
+
+            else:
+                plt.title(f'Clients distribution (gamma={args.alpha})')
+                
+            # Save the plot as a PDF file
+            plt.savefig(f'${args.metrics_dir}/client_selection_frequency_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pdf')
+
+            # Optionally, clear the figure to free up memory
+            plt.clf()
        
             pbar.update(1)
     metrics.to_pickle(f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.local_ep}_epoch_{args.epochs}.pkl")
