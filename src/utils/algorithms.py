@@ -97,7 +97,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
             if (epoch+1) % args.print_every == 0:
                 for cl in user_groups_train:
                     cl_acc_list, cl_loss_list = [], []
-                    cl_acc, cl_loss = inference(global_model, cl.test_dataloader, criterion, args)
+                    cl_acc, cl_loss = cl.inference(global_model, criterion, args)
                     cl_acc_list.append(cl_acc)
                     cl_loss_list.append(cl_loss)
                 # i want an list of client_acc client_loss for each client doing the average of the accuracy of the list

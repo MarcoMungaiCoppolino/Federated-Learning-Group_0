@@ -1,7 +1,6 @@
 import random
 import numpy as np
 import torch
-from utils.logger import Logger
 from collections import Counter
 from torch.utils.data import DataLoader, Subset
 
@@ -36,7 +35,7 @@ class Client:
         dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
         return dataloader
 
-    def print_class_distribution(self):
+    def print_class_distribution(self, logger):
         def get_class_distribution(indices, dataset):
             targets = [dataset.targets[idx] for idx in indices]
             return dict(Counter(targets))
@@ -50,8 +49,27 @@ class Client:
         logger.info(f"  Val: {val_dist}")
         logger.info(f"  Test: {test_dist}")
 
+    def inference(self, model, criterion, args):
+        model.eval()
+        correct, total, test_loss = 0.0, 0.0, 0.0
+        testloader = self.test_dataloader
+        with torch.no_grad():
+            for batch_idx, (inputs, labels) in enumerate(testloader):
+                if args.device == 'cuda':
+                    inputs, labels = inputs.cuda(), labels.cuda() 
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+
+                test_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        test_loss = test_loss / len(testloader)
+        accuracy = correct / total
+        return accuracy, test_loss
+
     def train(self, model, criterion, optimizer, args):
-        self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
+        self.train_dataloader = self.create_dataloader('train')  # Recreate dataloader to shuffle data
 
         model.train()
         step_count = 0  # Initialize step counter
