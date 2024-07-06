@@ -1,6 +1,8 @@
 import random
 import numpy as np
 import torch
+from utils.logger import Logger
+from collections import Counter
 from torch.utils.data import DataLoader, Subset
 
 
@@ -43,10 +45,10 @@ class Client:
         val_dist = get_class_distribution(self.val_indices, self.train_dataset)
         test_dist = get_class_distribution(self.test_indices, self.test_dataset)
 
-        print(f"Client {self.client_id} class distribution:")
-        print(f"  Train: {train_dist}")
-        print(f"  Val: {val_dist}")
-        print(f"  Test: {test_dist}")
+        logger.info(f"Client {self.client_id} class distribution:")
+        logger.info(f"  Train: {train_dist}")
+        logger.info(f"  Val: {val_dist}")
+        logger.info(f"  Test: {test_dist}")
 
     def train(self, model, criterion, optimizer, args):
         self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data

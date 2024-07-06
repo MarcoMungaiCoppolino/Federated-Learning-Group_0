@@ -49,4 +49,6 @@ if __name__ == '__main__':
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
         criterion = nn.CrossEntropyLoss().to(device)
+        for client in user_groups_train:
+          client.print_class_distribution()
         fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set)
