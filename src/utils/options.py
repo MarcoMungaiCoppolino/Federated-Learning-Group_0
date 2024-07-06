@@ -28,6 +28,7 @@ def args_parser():
                         help="local batch size: B")
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
+    parser.add_argument('--algorithm', type=str, default='fedavg', help='Default set to FedAvg.')
 
     # model arguments
     parser.add_argument('--model', type=str, default='cnn', help='model name')

@@ -1,6 +1,7 @@
 import torch
 import os
 from torch.utils.data import DataLoader
+import numpy as np
 
 
 
@@ -46,4 +47,17 @@ def inference(model, test_set, criterion, args):
     accuracy = correct / total
     return accuracy, test_loss
 
+def eval_knnper_grid(client_, weights_grid_, capacities_grid_):
+    client_results = np.zeros((len(weights_grid_), len(capacities_grid_)))
+
+    for ii, capacity in enumerate(capacities_grid_):
+        client_.capacity = capacity
+        client_.clear_datastore()
+        client_.build_datastore()
+        client_.gather_knn_outputs()
+
+        for jj, weight in enumerate(weights_grid_):
+            client_results[jj, ii] = client_.evaluate(weight) * client_.n_test_samples
+
+    return client_results
 __all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint']

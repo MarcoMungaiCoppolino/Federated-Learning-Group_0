@@ -21,8 +21,8 @@ def get_dataset(args):
                                       transform=transform_test)
         if args.iid:
             # Sample IID user data from CIFAR100
-            user_groups_train = cifar_iid(train_dataset, test_dataset, args.val_split, args.num_users)
+            user_groups_train = cifar_iid(train_dataset, test_dataset, args.val_split, args.num_users, args)
         else:
-            user_groups_train = cifar_noniid(train_dataset, args.num_users, args.Nc)
+            user_groups_train = cifar_noniid(train_dataset, args.num_users, args.Nc, args)
         
         return train_dataset, test_dataset, user_groups_train

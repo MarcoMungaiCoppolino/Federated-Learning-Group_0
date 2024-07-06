@@ -97,6 +97,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
             if (epoch+1) % args.print_every == 0:
                 for cl in user_groups_train:
                     cl_acc_list, cl_loss_list = [], []
+                    # also add val accuracy, and train accuracy
                     cl_acc, cl_loss = cl.inference(global_model, criterion, args)
                     logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
                     cl_acc_list.append(cl_acc)
