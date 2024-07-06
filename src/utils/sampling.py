@@ -6,17 +6,47 @@ from torch.utils.data import DataLoader, Subset
 
 
 class Client:
-    def __init__(self, client_id, train_dataset, indices, batch_size=64):
+    def __init__(self, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices, batch_size=64):
         self.client_id = client_id
-        self.train_dataset = train_dataset
-        self.indices = indices
-        self.batch_size = batch_size
-        self.train_dataloader = self.create_dataloader()
 
-    def create_dataloader(self):
-        subset = Subset(self.train_dataset, self.indices)
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
+
+        self.train_indices = train_indices
+        self.val_indices = val_indices
+        self.test_indices = test_indices
+
+        self.batch_size = batch_size
+        self.train_dataloader = self.create_dataloader("train")
+        self.val_dataloader = self.create_dataloader("val")
+        self.test_dataloader = self.create_dataloader("test")
+
+
+    def create_dataloader(self, dataset_type):
+        dataset_dict = {
+            "train": (self.train_dataset, self.train_indices),
+            "val": (self.train_dataset, self.val_indices),
+            "test": (self.test_dataset, self.test_indices)
+        }
+
+        dataset, indices = dataset_dict[dataset_type]
+        subset = Subset(dataset, indices)
         dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
         return dataloader
+
+    def print_class_distribution(self):
+        def get_class_distribution(indices, dataset):
+            targets = [dataset.targets[idx] for idx in indices]
+            return dict(Counter(targets))
+
+        train_dist = get_class_distribution(self.train_indices, self.train_dataset)
+        val_dist = get_class_distribution(self.val_indices, self.train_dataset)
+        test_dist = get_class_distribution(self.test_indices, self.test_dataset)
+
+        print(f"Client {self.client_id} class distribution:")
+        print(f"  Train: {train_dist}")
+        print(f"  Val: {val_dist}")
+        print(f"  Test: {test_dist}")
 
     def train(self, model, criterion, optimizer, args):
         self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
@@ -26,7 +56,7 @@ class Client:
         while step_count < args.local_ep:  # Loop until local steps are reached
             for inputs, labels in self.train_dataloader:
                 if args.device == 'cuda':
-                    inputs, labels = inputs.cuda(), labels.cuda() 
+                    inputs, labels = inputs.cuda(), labels.cuda()
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
@@ -38,34 +68,61 @@ class Client:
         return model
 
 
-def cifar_iid(dataset, num_clients):
+
+def cifar_iid(train_dataset, test_dataset, val_split, num_clients):
     # Number of classes in the dataset
-    num_classes = len(dataset.classes)
+    num_classes = len(train_dataset.classes)
 
     # Create a list to store indices for each class
     class_indices = [[] for _ in range(num_classes)]
 
     # Populate class_indices with the indices of each class
-    for idx, target in enumerate(dataset.targets):
+    for idx, target in enumerate(train_dataset.targets):
         class_indices[target].append(idx)
 
     # Shuffle indices within each class
     for indices in class_indices:
         np.random.shuffle(indices)
 
+    # Create lists for train and validation class indices
+    train_class_indices = [[] for _ in range(num_classes)]
+    val_class_indices = [[] for _ in range(num_classes)]
+
+    # Split the indices into 80% for train and 20% for validation
+    for i, indices in enumerate(class_indices):
+        split_idx = int(len(indices) * val_split)
+        val_class_indices[i] = indices[:split_idx]
+        train_class_indices[i] = indices[split_idx:]
+
+    # Prepare test_class_indices
+    test_class_indices = [[] for _ in range(num_classes)]
+    for idx, target in enumerate(test_dataset.targets):
+        test_class_indices[target].append(idx)
+    for indices in test_class_indices:
+        np.random.shuffle(indices)
+
     # Calculate the number of samples per client per class
-    samples_per_client_per_class = len(dataset) // (num_clients * num_classes)
+    train_samples_per_client_per_class = int(len(train_dataset) * (1-val_split) // (num_clients * num_classes))
+    val_samples_per_client_per_class = int(len(train_dataset) * val_split // (num_clients * num_classes))
+    test_samples_per_client_per_class = len(test_dataset) // (num_clients * num_classes)
 
     # Initialize the list of client objects
     clients = []
 
     # Distribute the samples uniformly to the clients
     for client_id in range(num_clients):
-        client_indices = []
-        for class_indices_for_class in class_indices:
-            client_indices.extend(class_indices_for_class[client_id * samples_per_client_per_class : (client_id + 1) * samples_per_client_per_class])
-        
-        client = Client(client_id, dataset, client_indices)
+        train_client_indices = []
+        val_client_indices = []
+        test_client_indices = []
+
+        for train_class_indices_for_class in train_class_indices:
+            train_client_indices.extend(train_class_indices_for_class[client_id * train_samples_per_client_per_class : (client_id + 1) * train_samples_per_client_per_class])
+        for val_class_indices_for_class in val_class_indices:
+            val_client_indices.extend(val_class_indices_for_class[client_id * val_samples_per_client_per_class : (client_id + 1) * val_samples_per_client_per_class])
+        for test_class_indices_for_class in test_class_indices:
+            test_client_indices.extend(test_class_indices_for_class[client_id * test_samples_per_client_per_class : (client_id + 1) * test_samples_per_client_per_class])
+
+        client = Client(client_id, train_dataset, test_dataset, train_client_indices, val_client_indices, test_client_indices)
         clients.append(client)
 
     return clients

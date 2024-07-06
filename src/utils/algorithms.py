@@ -95,13 +95,22 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
             update_weights(global_model, aggregated_weights)
             
             if (epoch+1) % args.print_every == 0:
+                for cl in user_groups_train:
+                    cl_acc_list, cl_loss_list = [], []
+                    cl_acc, cl_loss = inference(global_model, cl.test_dataloader, criterion, args)
+                    cl_acc_list.append(cl_acc)
+                    cl_loss_list.append(cl_loss)
+                # i want an list of client_acc client_loss for each client doing the average of the accuracy of the list
                 acc, loss = inference(global_model, test_set, criterion,args)
-                metrics.loc[len(metrics)] = [epoch+1, acc, loss]
+                metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
+                logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
                 wandb_logger.log({
                         'Test Loss': loss,
                         'Test Accuracy': acc * 100,
+                        'Avg Train Accuracy': np.mean(cl_acc_list) * 100,
+                        'Avg Train Loss': np.mean(cl_loss_list),
                         'Round': epoch + 1
                     })
             if (epoch+1) % args.print_every == 0:
