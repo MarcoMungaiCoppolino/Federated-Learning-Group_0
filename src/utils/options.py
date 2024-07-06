@@ -21,7 +21,7 @@ def args_parser():
                         help='number of class each client in non iid')
     parser.add_argument('--frac', type=float, default=0.1,
                         help='the fraction of clients: C')
-    parser.add_argument('--val_split', type=float, default=0.1, help='validation split')
+    parser.add_argument('--val_split', type=float, default=0.2, help='validation split')
     parser.add_argument('--local_ep', type=int, default=4,
                         help="the number of local rounds: J")
     parser.add_argument('--local_bs', type=int, default=64,
