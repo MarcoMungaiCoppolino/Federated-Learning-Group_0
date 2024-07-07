@@ -18,7 +18,7 @@ def load_checkpoint(filename):
     else:
         print(f"No checkpoint found at '{filename}'")
         return None
-def knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_test, loader_type='test', n_parties=100):
+def knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_test, loader_type='test', n_parties=100, logger=None):
         test_results = defaultdict(lambda: defaultdict(list))
         for net_id in range(n_parties):
             
@@ -31,18 +31,18 @@ def knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_tes
             capacity = int(args.Nc * n_train_samples)
             rng = np.random.default_rng(seed=0)
             # vec_dim = 128*65
-            vec_dim = 128
-            datastore = DataStore(capacity, "random", vec_dim, rng)
+            vec_dim = 192
+            datastore = DataStore(capacity, "random", vec_dim, rng, logger=logger)
             test_correct, test_total, test_avg_loss = compute_accuracy_loss_knn(global_model, dataidxs_train, dataidxs_test, datastore, vec_dim, args, device=args.device)
             if loader_type == 'train':
                 train_correct, train_total, train_avg_loss = compute_accuracy_loss_knn(global_model, dataidxs_train, dataidxs_train, datastore, vec_dim, args, device=args.device)
-                train_results['accuracy'] = train_correct
-                train_results['loss'] = train_avg_loss
-                train_results['correct'] = train_correct
-                train_results['total'] = train_total
-            test_results['loss'] = test_avg_loss 
-            test_results['correct'] = test_correct
-            test_results['total'] = test_total
+                train_results[net_id]['accuracy'] = train_correct
+                train_results[net_id]['loss'] = train_avg_loss
+                train_results[net_id]['correct'] = train_correct
+                train_results[net_id]['total'] = train_total
+            test_results[net_id]['loss'] = test_avg_loss 
+            test_results[net_id]['correct'] = test_correct
+            test_results[net_id]['total'] = test_total
         test_total_correct = sum([val['correct'] for val in test_results.values()])
         test_total_samples = sum([val['total'] for val in test_results.values()])
         test_avg_loss = np.mean([val['loss'] for val in test_results.values()])

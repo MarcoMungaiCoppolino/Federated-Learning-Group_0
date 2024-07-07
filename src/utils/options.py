@@ -54,7 +54,8 @@ def args_parser():
     parser.add_argument('--verbose', type=int, default=0, help='verbose')
     parser.add_argument('--gamma', type=float, default=0.1, help='gamma')
     parser.add_argument('--metrics_dir', type=str, default='/content/drive/MyDrive/MLDL/cifar/metrics', help='metrics directory')
-
+    parser.add_argument('--k_value', type=int, default=7, help='k value for knn')
+    parser.add_argument('--knn_weight', type=float, default=0.6)
     # If running in a notebook, ignore the first argument which is the script name
     args = parser.parse_args(args=sys.argv[1:] if "__file__" in globals() else [])
     return args

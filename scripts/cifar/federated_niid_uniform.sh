@@ -4,11 +4,11 @@ wandb_key="$1"  # First argument is the Wandb key
 wandb_username="$2"  # Second argument is the Wandb username
 
 # Set other variables as needed
-python_script="/content/Federated-Learning-Group_0/src/federated.py"
-data_dir="/content/drive/MyDrive/MLDL/cifar/data"
-checkpoint_path="/content/drive/MyDrive/MLDL/cifar/checkpoints"
-logfile_base="/content/drive/MyDrive/MLDL/cifar/logs/federated_cifar_100_noniid_uniform"
-metrics_dir="/content/drive/MyDrive/MLDL/cifar/metrics"
+python_script="./src/federated.py"
+data_dir="./data"
+checkpoint_path="/Users/ace/Desktop/MLDL_resources/new_federated/checkpoints"
+logfile_base="./logs/federated_cifar_100_noniid_uniform"
+metrics_dir="./cifar/metrics"
 
 # Check if GPU is available (using nvidia-smi command to check)
 if nvidia-smi &> /dev/null; then
@@ -18,15 +18,15 @@ else
 fi
 
 # Loop over the combinations of j and nc
-for j in 4 8 16
+for j in 16 8 4
 do
-    for nc in 1 5 10 50
+    for nc in 50 10 5 1
     do
         name="federated_cifar_100_noniid_uniform_j=${j}_nc=${nc}"
         logfile="${logfile_base}_j=${j}_nc=${nc}.log"
         
         # Base command
-        CMD="python3 $python_script \
+        CMD="/Users/ace/anaconda3/envs/fed/bin/python $python_script \
             --dataset cifar \
             --epochs 2000 \
             --checkpoint_path $checkpoint_path \

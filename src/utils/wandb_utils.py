@@ -5,7 +5,7 @@ class WandbLogger:
         self.key = args.wandb_key
         self.run = None
         if args.wandb_key:
-            wandb.login(key=args.wandb_key)
+            # wandb.login(key=args.wandb_key)
             self.run = wandb.init(project=args.wandb_project, name=args.wandb_run_name, entity=args.wandb_username)
             wandb.config.update(args)
         else:

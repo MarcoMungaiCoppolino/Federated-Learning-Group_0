@@ -26,11 +26,12 @@ class DataStore(object):
     clear
 
     """
-    def __init__(self, capacity, strategy, dimension, rng):
+    def __init__(self, capacity, strategy, dimension, rng, logger=None):
         self.capacity = capacity
         self.strategy = strategy
         self.dimension = dimension
         self.rng = rng
+        self.logger = logger
 
         self.index = faiss.IndexFlatL2(self.dimension)
         self.labels = None
@@ -59,7 +60,6 @@ class DataStore(object):
         """
         if self.capacity <= 0:
             return
-
         n_train_samples = len(train_vectors)
         if n_train_samples <= self.capacity:
             self.index.add(train_vectors)
