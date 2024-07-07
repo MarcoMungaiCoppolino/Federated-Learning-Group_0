@@ -93,28 +93,41 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                 aggregated_weight = torch.mean(torch.stack(weights_list), dim=0)
                 aggregated_weights.append(aggregated_weight)
             update_weights(global_model, aggregated_weights)
-            
+            net_dataidx_map_train = {i.client_id: i.test_dataloader for i in user_groups_train}
+            net_dataidx_map_test = {i.client_id: i.train_dataloader for i in user_groups_train}
+            _, _, train_acc, _, _, test_avg_loss, test_acc, _ = knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_test, loader_type='test', n_parties=len(idx_users))
+            logger.info('>> Global Model Train accuracy: %f' % train_acc)
+            logger.info('>> Global Model Test accuracy: %f' % test_acc)
+            logger.info('>> Test avg loss: %f' %test_avg_loss)
+
             if (epoch+1) % args.print_every == 0:
                 for cl in user_groups_train:
+                   
                     cl_acc_list, cl_loss_list = [], []
                     # also add val accuracy, and train accuracy
                     cl_acc, cl_loss = cl.inference(global_model, criterion, args)
                     logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
                     cl_acc_list.append(cl_acc)
                     cl_loss_list.append(cl_loss)
+               
+                # print(net_dataidx_map_train)
+                
                 # i want an list of client_acc client_loss for each client doing the average of the accuracy of the list
                 acc, loss = inference(global_model, test_set, criterion,args)
                 metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
                 logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
-                wandb_logger.log({
-                        'Test Loss': loss,
-                        'Test Accuracy': acc * 100,
-                        'Avg Train Accuracy': np.mean(cl_acc_list) * 100,
-                        'Avg Train Loss': np.mean(cl_loss_list),
-                        'Round': epoch + 1
-                    })
+                # wandb_logger.log({
+                #         'Global Model Train Accuracy': train_acc * 100,
+                #         'Global Model Test Accuracy': test_acc * 100,
+                #         'Test Avg Loss': test_avg_loss,
+                #         'Test Loss': loss,
+                #         'Test Accuracy': acc * 100,
+                #         'Avg Train Accuracy': np.mean(cl_acc_list) * 100,
+                #         'Avg Train Loss': np.mean(cl_loss_list),
+                #         'Round': epoch + 1
+                #     })
             if (epoch+1) % args.print_every == 0:
                     # Save checkpoint
                     if args.iid:

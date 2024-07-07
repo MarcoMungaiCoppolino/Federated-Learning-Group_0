@@ -175,3 +175,4 @@ data/predictions/*
 data/preprocessed/*
 
 .DS_Store
+data/

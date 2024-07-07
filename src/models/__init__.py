@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 
 class CIFARLeNet(nn.Module):
     """
@@ -34,7 +35,13 @@ class CIFARLeNet(nn.Module):
         self.fc1 = nn.Linear(64 * 5 * 5, 384)
         self.fc2 = nn.Linear(384, 192)
         self.fc3 = nn.Linear(192, 100)
-
+    def produce_feature(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(x.shape[0], -1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return x
     def forward(self, x):
         """
         Defines the forward pass of the model.
@@ -50,18 +57,18 @@ class CIFARLeNet(nn.Module):
             The output tensor after applying all the layers.
         """
         x = self.conv1(x)
-        x = nn.functional.relu(x)
+        x = F.relu(x)
         x = self.pool(x)
         x = self.conv2(x)
-        x = nn.functional.relu(x)
+        x = F.relu(x)
         x = self.pool(x)
         x = x.view(-1, 64 * 5 * 5)
         x = self.fc1(x)
-        x = nn.functional.relu(x)
+        x = F.relu(x)
         x = self.fc2(x)
-        x = nn.functional.relu(x)
+        x = F.relu(x)
         x = self.fc3(x)
-        x = nn.functional.log_softmax(x, dim=1)
+        x = F.log_softmax(x, dim=1)
         return x
 
 
