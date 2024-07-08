@@ -19,8 +19,9 @@ if __name__ == '__main__':
     device = 'cuda' if args.gpu else 'cpu'
     logger.debug(f"Using {device} device")
     args.device = device
-    train_set, test_set, user_groups_train = get_dataset(args)
-
+    train_set, test_set, user_groups_train = get_dataset(args, logger)
+    for user in user_groups_train:
+        user.print_class_distribution()
 
     logger.info("######################")
     logger.info("### Configuration ####")

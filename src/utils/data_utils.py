@@ -1,7 +1,7 @@
 from torchvision import datasets, transforms
 from utils.sampling import *
 
-def get_dataset(args):
+def get_dataset(args, logger):
     data_dir = args.data_dir
     if args.dataset == 'cifar':
         transform_train = transforms.Compose([
@@ -21,8 +21,8 @@ def get_dataset(args):
                                       transform=transform_test)
         if args.iid:
             # Sample IID user data from CIFAR100
-            user_groups_train = cifar_iid(train_dataset, test_dataset, args.val_split, args.num_users, args)
+            clients = cifar_iid(args, train_dataset, test_dataset, logger)
         else:
-            user_groups_train = cifar_noniid(train_dataset, test_dataset, args.val_split, args.num_users, args.Nc)
+            clients = cifar_noniid(args, train_dataset, test_dataset, logger)
         
-        return train_dataset, test_dataset, user_groups_train
+    return train_dataset, test_dataset, clients

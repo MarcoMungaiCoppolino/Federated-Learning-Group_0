@@ -9,7 +9,7 @@ import warnings
 
 
 class Client:
-    def __init__(self, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices, batch_size=64):
+    def __init__(self, args, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices, logger):
         self.client_id = client_id
 
         self.train_dataset = train_dataset
@@ -18,12 +18,12 @@ class Client:
         self.train_indices = train_indices
         self.val_indices = val_indices
         self.test_indices = test_indices
+        self.logger = logger
 
-        self.batch_size = batch_size
+        self.batch_size = args.local_bs
         self.train_dataloader = self.create_dataloader("train")
         self.val_dataloader = self.create_dataloader("val")
         self.test_dataloader = self.create_dataloader("test")
-
 
     def create_dataloader(self, dataset_type):
         dataset_dict = {
@@ -37,7 +37,7 @@ class Client:
         dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
         return dataloader
 
-    def print_class_distribution(self, logger):
+    def print_class_distribution(self):
         def get_class_distribution(indices, dataset):
             targets = [dataset.targets[idx] for idx in indices]
             return dict(Counter(targets))
@@ -46,32 +46,32 @@ class Client:
         val_dist = get_class_distribution(self.val_indices, self.train_dataset)
         test_dist = get_class_distribution(self.test_indices, self.test_dataset)
 
-        logger.info(f"Client {self.client_id} class distribution:")
-        logger.info(f"  Train: {train_dist}")
-        logger.info(f"  Val: {val_dist}")
-        logger.info(f"  Test: {test_dist}")
+        self.logger(f"Client {self.client_id} class distribution:")
+        self.logger(f"  Train: {train_dist}")
+        self.logger(f"  Val: {val_dist}")
+        self.logger(f"  Test: {test_dist}")
 
-    def inference(self, model, criterion, args, loader_type='test'):
-        model.eval()
-        correct, total, test_loss = 0.0, 0.0, 0.0
-        testloader = self.test_dataloader if loader_type == 'test' else self.val_dataloader
-        with torch.no_grad():
-            for batch_idx, (inputs, labels) in enumerate(testloader):
-                if args.device == 'cuda':
-                    inputs, labels = inputs.cuda(), labels.cuda() 
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
+    def check_indices(self):
+        def has_duplicates(lst):
+            return len(lst) != len(set(lst))
 
-                test_loss += loss.item()
-                _, predicted = torch.max(outputs, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-        test_loss = test_loss / len(testloader)
-        accuracy = correct / total
-        return accuracy, test_loss
+        if has_duplicates(self.train_indices):
+            raise ValueError("Duplicate entries found in train_indices")
+        if has_duplicates(self.val_indices):
+            raise ValueError("Duplicate entries found in val_indices")
+        if has_duplicates(self.test_indices):
+            raise ValueError("Duplicate entries found in test_indices")
+
+        train_indices_set = set(self.train_indices)
+        val_indices_set = set(self.val_indices)
+
+        if not train_indices_set.isdisjoint(val_indices_set):
+            raise ValueError("Overlap found between train_indices and val_indices")
+        if not val_indices_set.isdisjoint(train_indices_set):
+            raise ValueError("Overlap found between val_indices and train_indices")
 
     def train(self, model, criterion, optimizer, args):
-        self.train_dataloader = self.create_dataloader('train')  # Recreate dataloader to shuffle data
+        self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
 
         model.train()
         step_count = 0  # Initialize step counter
@@ -89,8 +89,43 @@ class Client:
                     break
         return model
 
+    def inference(self, model, criterion, args, loader_type='test'):
+        model.eval()
+        correct, total, test_loss = 0.0, 0.0, 0.0
+        testloader = self.test_dataloader if loader_type == 'test' else self.val_dataloader
+        with torch.no_grad():
+            for batch_idx, (inputs, labels) in enumerate(testloader):
+                if args.device == 'cuda':
+                    inputs, labels = inputs.cuda(), labels.cuda()
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+
+                test_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        test_loss = test_loss / len(testloader)
+        accuracy = correct / total
+        return accuracy, test_loss
+
+    def single_batch_inference(self, model, criterion, args):
+        model.eval()
+        testloader = iter(self.test_dataloader)
+        with torch.no_grad():
+            inputs, labels = next(testloader)
+            if args.device == 'cuda':
+                inputs, labels = inputs.cuda(), labels.cuda()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            _, predicted = torch.max(outputs, 1)
+            correct = (predicted == labels).sum().item()
+            accuracy = correct / len(labels)
+        return accuracy, loss.item()
     
-def cifar_iid(train_dataset, test_dataset, val_split, num_clients, args):
+def cifar_iid(args, train_dataset, test_dataset, logger):
+    val_split = args.val_split
+    num_clients = args.num_users
+
     # Number of classes in the dataset
     num_classes = len(train_dataset.classes)
 
@@ -142,15 +177,13 @@ def cifar_iid(train_dataset, test_dataset, val_split, num_clients, args):
             val_client_indices.extend(val_class_indices_for_class[client_id * val_samples_per_client_per_class : (client_id + 1) * val_samples_per_client_per_class])
         for test_class_indices_for_class in test_class_indices:
             test_client_indices.extend(test_class_indices_for_class[client_id * test_samples_per_client_per_class : (client_id + 1) * test_samples_per_client_per_class])
-       
-        client = Client(client_id, train_dataset, test_dataset, train_client_indices, val_client_indices, test_client_indices)
+
+        client = Client(args, client_id, train_dataset, test_dataset, train_client_indices, val_client_indices, test_client_indices,logger)
         clients.append(client)
 
     return clients
 
-
-
-def cifar_noniid(train_dataset, test_dataset, val_split, num_clients, Nc):
+def cifar_noniid(args, train_dataset, test_dataset, logger):
     def class_clients_sharding(num_classes, Nc):
         class_clients = {key: set() for key in range(num_classes)}
         first_clients = list(range(num_classes))
@@ -173,6 +206,9 @@ def cifar_noniid(train_dataset, test_dataset, val_split, num_clients, Nc):
 
         return class_clients
 
+    val_split = args.val_split
+    num_clients = args.num_users
+    Nc = args.Nc
     num_classes = len(train_dataset.classes)
 
     error = True
@@ -246,9 +282,10 @@ def cifar_noniid(train_dataset, test_dataset, val_split, num_clients, Nc):
             test_shards_indices[client].extend(test_class_indices_for_class[test_start_idx:test_end_idx])
 
     for client_id in range(num_clients):
-        client = Client(client_id, train_dataset, test_dataset, train_shards_indices[client_id], val_shards_indices[client_id], test_shards_indices[client_id])
+        client = Client(args, client_id, train_dataset, test_dataset, train_shards_indices[client_id], val_shards_indices[client_id], test_shards_indices[client_id],logger)
         clients_list.append(client)
 
     return clients_list
+
 
 __all__ = ['cifar_iid', 'cifar_noniid']

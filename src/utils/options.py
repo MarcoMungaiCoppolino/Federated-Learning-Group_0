@@ -10,7 +10,7 @@ def args_parser():
     parser.add_argument('--wandb_project', type=str, default='federated_learning', help='wandb project')
     parser.add_argument('--wandb_run_name', type=str, default='federated_learning_uniform', help='wandb run name')
     parser.add_argument('--logfile', type=str, default='/content/logger.log', help='log file name')
-    parser.add_argument('--data_dir', type=str, default='', help='data directory')
+    parser.add_argument('--data_dir', type=str, default='/content/drive/MyDrive/MLDL/cifar/data', help='data directory')
 
     # federated arguments (Notation for the arguments followed from paper)
     parser.add_argument('--epochs', type=int, default=2000,
