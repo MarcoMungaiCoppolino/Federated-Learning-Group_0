@@ -20,8 +20,6 @@ if __name__ == '__main__':
     logger.debug(f"Using {device} device")
     args.device = device
     train_set, test_set, user_groups_train = get_dataset(args, logger)
-    for user in user_groups_train:
-        user.print_class_distribution()
 
     logger.info("######################")
     logger.info("### Configuration ####")
@@ -50,6 +48,6 @@ if __name__ == '__main__':
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
         criterion = nn.CrossEntropyLoss().to(device)
-        for client in user_groups_train:
-          client.print_class_distribution(logger)
+        # for client in user_groups_train:
+        #   client.print_class_distribution()
         fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set)

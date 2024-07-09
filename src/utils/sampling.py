@@ -46,10 +46,10 @@ class Client:
         val_dist = get_class_distribution(self.val_indices, self.train_dataset)
         test_dist = get_class_distribution(self.test_indices, self.test_dataset)
 
-        self.logger(f"Client {self.client_id} class distribution:")
-        self.logger(f"  Train: {train_dist}")
-        self.logger(f"  Val: {val_dist}")
-        self.logger(f"  Test: {test_dist}")
+        self.logger.info(f"Client {self.client_id} class distribution:")
+        self.logger.info(f"  Train: {train_dist}")
+        self.logger.info(f"  Val: {val_dist}")
+        self.logger.info(f"  Test: {test_dist}")
 
     def check_indices(self):
         def has_duplicates(lst):
@@ -71,7 +71,7 @@ class Client:
             raise ValueError("Overlap found between val_indices and train_indices")
 
     def train(self, model, criterion, optimizer, args):
-        self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
+        self.train_dataloader = self.create_dataloader('train')  # Recreate dataloader to shuffle data
 
         model.train()
         step_count = 0  # Initialize step counter
