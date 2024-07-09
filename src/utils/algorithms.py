@@ -108,7 +108,7 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                     cl_loss_list.append(cl_loss)
                
                 # print(net_dataidx_map_train)
-                train_results, train_avg_loss, train_acc, train_all_acc, test_results, test_avg_loss, test_acc, test_all_acc = knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_test, loader_type='train', n_parties=len(idx_users), logger=logger)
+                train_results, train_avg_loss, train_acc, train_all_acc, test_results, test_avg_loss, test_acc, test_all_acc = knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_test, loader_type='test', n_parties=len(idx_users), logger=logger)
                 logger.info('>> Global Model Train accuracy: %f' % train_acc)
                 logger.info('>> Global Model Test accuracy: %f' % test_acc)
                 logger.info('>> Test avg loss: %f' %test_avg_loss)
