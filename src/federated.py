@@ -46,8 +46,8 @@ if __name__ == '__main__':
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    if args.client_dir:
-        file_name = f'{args.client_dir}_{args.Nc}_{args.local_ep}{f'_{args.gamma}_' if not args.participation else '_'}clients.pkl'
+    if args.clienst_dir:
+        file_name = f'{args.clients_dir}_{args.Nc}_{args.local_ep}{f"_{args.gamma}_" if not args.participation else "_"}clients.pkl'
         with open(file_name, 'wb') as file:
             pickle.dump(user_groups_train, file)
         logger.info(f'Clients saved in {file_name}')

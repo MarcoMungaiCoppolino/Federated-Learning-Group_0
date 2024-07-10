@@ -6,7 +6,7 @@ ALL_STRATEGIES = {
 }
 
 ALL_MODELS = {
-    "mobilenet"
+    "CIFARLeNet"
 }
 LOADER_TYPE = {
     "synthetic": "tabular",
@@ -34,7 +34,7 @@ N_CLASSES = {
 
 EMBEDDING_DIM = {
     "cifar10": 1280,
-    "cifar100": 1280,
+    "cifar100": 192,
     "femnist": 1280,
     "shakespeare": 1024
 }

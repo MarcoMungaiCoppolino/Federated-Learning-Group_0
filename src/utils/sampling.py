@@ -4,26 +4,131 @@ import torch
 from collections import Counter
 from torch.utils.data import DataLoader, Subset
 from utils.models import *
+from models import CIFAR_LENET
+from utils.datastore import DataStore
+import warnings
 
 
 
 class Client:
     def __init__(self, args, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices, logger):
         self.client_id = client_id
-
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
-
         self.train_indices = train_indices
         self.val_indices = val_indices
         self.test_indices = test_indices
         self.logger = logger
-
+        self.device = args.device
         self.batch_size = args.local_bs
         self.train_dataloader = self.create_dataloader("train")
         self.val_dataloader = self.create_dataloader("val")
         self.test_dataloader = self.create_dataloader("test")  
-        
+        self.n_train_samples = len(self.train_dataloader.dataset)
+        self.n_test_samples = len(self.test_dataloader.dataset)
+        self.n_val_samples = len(self.val_dataloader.dataset)
+        self.features_dimension = 192
+        self.train_knn_outputs_flag = False
+        self.num_classes = 100
+        self.capacity = -1
+        self.strategy = "random"
+        self.rng = np.random.default_rng(seed=0)
+        self.model = CIFAR_LENET().to(args.device)
+        self.datastore = DataStore(self.capacity, self.strategy, self.features_dimension, self.rng)
+        self.datastore_flag = False
+        self.features_flag = False
+        self.train_features = np.zeros(shape=(self.n_train_samples, self.features_dimension), dtype=np.float32)
+        self.train_labels = np.zeros(shape=self.n_train_samples, dtype=np.float32)
+        self.test_features = np.zeros(shape=(self.n_test_samples, self.features_dimension), dtype=np.float32)
+        self.test_labels = np.zeros(shape=self.n_test_samples, dtype=np.float32)
+        self.train_model_outputs = np.zeros(shape=(self.n_train_samples, self.num_classes), dtype=np.float32)
+        self.train_model_outputs_flag = False
+        self.test_model_outputs = np.zeros(shape=(self.n_test_samples, self.num_classes), dtype=np.float32)
+        self.test_model_outputs_flag = False
+        self.train_knn_outputs = np.zeros(shape=(self.n_train_samples, self.num_classes), dtype=np.float32)
+        self.test_knn_outputs = np.zeros(shape=(self.n_test_samples, self.num_classes), dtype=np.float32)
+        self.test_knn_outputs_flag = False
+
+    def gather_knn_outputs(self, mode="test", scale=1.):
+        """
+        computes the k-NN predictions
+
+        :param mode: possible are "train" and "test", default is "test"
+        :param scale: scale of the gaussian kernel, default is 1.0
+        """
+        if self.capacity <= 0:
+            warnings.warn("trying to gather knn outputs with empty datastore", RuntimeWarning)
+            return
+
+        assert self.features_flag, "Features should be computed before building datastore!"
+        assert self.datastore_flag, "Should build datastore before computing knn outputs!"
+
+        if mode == "train":
+            features = self.train_features
+            self.train_knn_outputs_flag = True
+        else:
+            features = self.test_features
+            self.test_knn_outputs_flag = True
+
+        distances, indices = self.datastore.index.search(features, self.k)
+        similarities = np.exp(-distances / (self.features_dimension * scale))
+        neighbors_labels = self.datastore.labels[indices]
+
+        masks = np.zeros(((self.num_classes,) + similarities.shape))
+        for class_id in range(self.num_classes):
+            masks[class_id] = neighbors_labels == class_id
+
+        outputs = (similarities * masks).sum(axis=2) / similarities.sum(axis=1)
+
+        if mode == "train":
+            self.train_knn_outputs = outputs.T
+        else:
+            self.test_knn_outputs = outputs.T
+    def build_datastore(self):
+        assert self.features_flag, "Features should be computed before building datastore!"
+        self.datastore_flag = True
+        self.datastore.build(self.train_features, self.train_labels)
+
+    def clear_datastore(self):
+        """
+        clears `datastore`
+
+        """
+        self.datastore.clear()
+        self.datastore.capacity = self.capacity
+
+        self.datastore_flag = False
+        self.train_knn_outputs_flag = False
+        self.test_knn_outputs_flag = False
+    def compute_features_and_model_outputs(self):
+        """
+        extract features from `train_iterator` and `test_iterator` .
+        and computes the predictions of the base model (i.e., `self.model`) over `test_iterator`.
+
+        """
+        self.features_flag = True
+        self.train_model_outputs_flag = True
+        self.test_model_outputs_flag = True
+
+        self.train_features, self.train_model_outputs, self.train_labels = \
+            compute_embeddings_and_outputs(
+                model=self.model,
+                iterator=self.train_dataloader,
+                embedding_dim=self.features_dimension,
+                n_classes=self.num_classes,
+                apply_softmax=False,
+                device=self.device
+            )
+
+        self.test_features, self.test_model_outputs, self.test_labels = \
+            compute_embeddings_and_outputs(
+                model=self.model,
+                iterator=self.test_dataloader,
+                embedding_dim=self.features_dimension,
+                n_classes=self.num_classes,
+                apply_softmax=False,
+                device=self.device
+            )
 
     def create_dataloader(self, dataset_type):
         dataset_dict = {

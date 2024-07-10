@@ -28,7 +28,6 @@ class CIFARLeNet(nn.Module):
         Initialize the CIFARLeNet model with its layers.
         """
         super(CIFARLeNet, self).__init__()
-        self.flatten = nn.Flatten()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=5)
         self.pool = nn.MaxPool2d(2)
