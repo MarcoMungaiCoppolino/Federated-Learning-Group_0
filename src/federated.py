@@ -7,6 +7,7 @@ import pandas as pd
 import os
 from models import *
 from utils.algorithms import fedAVG
+import pickle
 
 if __name__ == '__main__':
     args = args_parser()
@@ -45,6 +46,11 @@ if __name__ == '__main__':
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    if args.client_dir:
+        file_name = f'{args.client_dir}_{args.Nc}_{args.local_ep}{f'_{args.gamma}_' if not args.participation else '_'}clients.pkl'
+        with open(file_name, 'wb') as file:
+            pickle.dump(user_groups_train, file)
+        logger.info(f'Clients saved in {file_name}')
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
         criterion = nn.CrossEntropyLoss().to(device)

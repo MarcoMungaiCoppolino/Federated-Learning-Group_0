@@ -1,10 +1,9 @@
 import random
 import numpy as np
 import torch
-from collections import Counter, defaultdict
+from collections import Counter
 from torch.utils.data import DataLoader, Subset
 from utils.models import *
-import warnings
 
 
 
@@ -23,7 +22,8 @@ class Client:
         self.batch_size = args.local_bs
         self.train_dataloader = self.create_dataloader("train")
         self.val_dataloader = self.create_dataloader("val")
-        self.test_dataloader = self.create_dataloader("test")
+        self.test_dataloader = self.create_dataloader("test")  
+        
 
     def create_dataloader(self, dataset_type):
         dataset_dict = {

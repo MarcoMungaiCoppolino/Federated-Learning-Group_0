@@ -107,13 +107,6 @@ def fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wa
                     # logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
                     cl_acc_list.append(cl_acc)
                     cl_loss_list.append(cl_loss)
-               
-                # print(net_dataidx_map_train)
-                # train_results, train_avg_loss, train_acc, train_all_acc, test_results, test_avg_loss, test_acc, test_all_acc = knn_inference(global_model, args, net_dataidx_map_train, net_dataidx_map_test, loader_type='test', n_parties=len(idx_users), logger=logger)
-                # logger.info('>> Global Model Train accuracy: %f' % train_acc)
-                # logger.info('>> Global Model Test accuracy: %f' % test_acc)
-                # logger.info('>> Test avg loss: %f' %test_avg_loss)
-                # i want an list of client_acc client_loss for each client doing the average of the accuracy of the list
                 acc, loss = inference(global_model, test_set, criterion,args)
                 metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
