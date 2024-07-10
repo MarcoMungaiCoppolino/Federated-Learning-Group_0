@@ -117,4 +117,4 @@ def inference(model, test_set, criterion, args):
     test_loss = test_loss / len(testloader)
     accuracy = correct / total
     return accuracy, test_loss
-__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'compute_embeddings_and_outputs']
+__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'compute_embeddings_and_outputs', 'eval_knnper_grid']

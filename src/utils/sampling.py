@@ -11,7 +11,7 @@ import warnings
 
 
 class Client:
-    def __init__(self, args, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices, logger):
+    def __init__(self, args, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices, logger, model=None):
         self.client_id = client_id
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -33,7 +33,7 @@ class Client:
         self.capacity = -1
         self.strategy = "random"
         self.rng = np.random.default_rng(seed=0)
-        self.model = CIFAR_LENET().to(args.device)
+        self.model = model
         self.datastore = DataStore(self.capacity, self.strategy, self.features_dimension, self.rng)
         self.datastore_flag = False
         self.features_flag = False
@@ -288,7 +288,7 @@ def cifar_iid(args, train_dataset, test_dataset, logger):
 
     return clients
 
-def cifar_noniid(args, train_dataset, test_dataset, logger):
+def cifar_noniid(args, train_dataset, test_dataset, logger, model):
     def class_clients_sharding(num_classes, Nc):
         class_clients = {key: set() for key in range(num_classes)}
         first_clients = list(range(num_classes))
@@ -387,7 +387,7 @@ def cifar_noniid(args, train_dataset, test_dataset, logger):
             test_shards_indices[client].extend(test_class_indices_for_class[test_start_idx:test_end_idx])
 
     for client_id in range(num_clients):
-        client = Client(args, client_id, train_dataset, test_dataset, train_shards_indices[client_id], val_shards_indices[client_id], test_shards_indices[client_id],logger)
+        client = Client(args, client_id, train_dataset, test_dataset, train_shards_indices[client_id], val_shards_indices[client_id], test_shards_indices[client_id],logger, model)
         clients_list.append(client)
 
     return clients_list

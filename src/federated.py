@@ -20,7 +20,10 @@ if __name__ == '__main__':
     device = 'cuda' if args.gpu else 'cpu'
     logger.debug(f"Using {device} device")
     args.device = device
-    train_set, test_set, user_groups_train = get_dataset(args, logger)
+    if args.dataset == 'cifar':
+        global_model = CIFARLeNet().to(device)
+        criterion = nn.CrossEntropyLoss().to(device)
+    train_set, test_set, user_groups_train = get_dataset(args, logger, global_model)
 
     logger.info("######################")
     logger.info("### Configuration ####")
@@ -51,9 +54,7 @@ if __name__ == '__main__':
         with open(file_name, 'wb') as file:
             pickle.dump(user_groups_train, file)
         logger.info(f'Clients saved in {file_name}')
-    if args.dataset == 'cifar':
-        global_model = CIFARLeNet().to(device)
-        criterion = nn.CrossEntropyLoss().to(device)
+    
         # for client in user_groups_train:
         #   client.print_class_distribution()
-        fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set)
+    fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set)
