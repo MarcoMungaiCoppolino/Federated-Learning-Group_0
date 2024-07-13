@@ -125,6 +125,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
                 logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
+                logger.info(f'Avg Validation Loss: {np.mean(cl_val_loss_list)} Average Validation Accuracy: {np.mean(cl_val_acc_list)}')
                 wandb_logger.log({
                         # 'Global Model Train Accuracy': train_acc * 100,
                         # 'Global Model Test Accuracy': test_acc * 100,
