@@ -51,13 +51,18 @@ if __name__ == '__main__':
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     
-    clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': []}
+    clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': [], 'train_indices': [], 'val_indices': [], 'test_indices': []}
     for client in clients:
         distributions = client.get_distributions()
         clients_classes['client_id'].append(client.client_id)
         clients_classes['train'].append(distributions['train'])
         clients_classes['val'].append(distributions['val'])
         clients_classes['test'].append(distributions['test'])
+        clients_classes['train_indices'].append(client.train_indices)
+        clients_classes['val_indices'].append(client.val_indices)
+        clients_classes['test_indices'].append(client.test_indices)
+        
+        
     clients_classes_df = pd.DataFrame(clients_classes)
     if args.iid:
         if args.participation:
