@@ -26,14 +26,25 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
         else:
             checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
     checkpoint_files = sorted(glob.glob(checkpoint_pattern))
-    if False:
+    if len(checkpoint_files):
         latest_checkpoint = checkpoint_files[-1]
         checkpoint = load_checkpoint(latest_checkpoint)
+        # {
+        #         'epoch': step + 1,
+        #         'model_state_dict': global_model.state_dict(),
+        #         'test_loss': loss,
+        #         'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
+        #         'test_accuracy': acc,
+        #         'test_avg_loss': results['test_avg_loss'][-1],
+        #         'test_avg_acc': results['test_avg_acc'][-1],
+        #         'val_avg_loss': results['val_avg_loss'][-1],
+        #         'val_avg_acc': results['val_avg_acc'][-1],
+        #     }
         if checkpoint:
             start_epoch = checkpoint['epoch']
-            last_train_accuracy = checkpoint['train_accuracy']
+            last_test_accuracy = checkpoint['test_accuracy']
             last_user_input = checkpoint['user_input']
-            train_loss = checkpoint['train_loss']
+            test_loss = checkpoint['test_loss']
 
             # Print the status of the last checkpoint
             participation_status = 'uniform' if last_user_input[1] == 1 else 'skewed'
@@ -45,8 +56,8 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
             logger.info(f"\nA saving checkpoint with these parameters exists:\n"
                 f"Last checkpoint details:\n"
                 f"Epoch reached: {start_epoch}\n"
-                f"Train accuracy: {100*last_train_accuracy[-1]}%\n"
-                f"Training loss: {np.mean(np.array(train_loss))}\n"
+                f"Test accuracy: {100*last_test_accuracy[-1]}%\n"
+                f"Test loss: {test_loss}\n"
                 f"User input variables: {user_input_string}\n")
 
             # Ask the user if they want to continue from the last checkpoint or start again
@@ -388,9 +399,9 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
                     if os.path.exists(prev_filename):
                         os.remove(prev_filename)
-            # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Validation Accuracy', 'Validation Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
+            # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
             
-            metrics.loc[len(metrics)] = [step + 1, acc, loss, results['test_avg_acc'][-1], results['test_avg_loss'][-1], val_avg_acc, val_avg_loss, results['val_avg_acc'][-1], results['val_avg_loss'][-1]]
+            metrics.loc[len(metrics)] = [step + 1, acc, loss, results['test_avg_acc'][-1], results['test_avg_loss'][-1], results['val_avg_acc'][-1], results['val_avg_loss'][-1]]
     if step != last_eval:
         _, val_avg_loss, val_avg_acc, _ = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
         step_results, avg_loss, avg_acc, all_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
