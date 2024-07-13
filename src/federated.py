@@ -85,8 +85,6 @@ if __name__ == '__main__':
     if args.n_nodes == args.num_users:
         if args.algorithm == 'fedavg':
             fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
-        elif args.algorithm == 'pfedhn':
-            pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
     else:
         rearranged_clients = []
         for i in range(n_nodes):
