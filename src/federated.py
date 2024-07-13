@@ -87,8 +87,8 @@ if __name__ == '__main__':
             fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
     else:
         rearranged_clients = []
-        for i in range(n_nodes):
-            rearranged_client.append(clients[new_indices[i])        
+        for i in range(args.n_nodes):
+            rearranged_clients.append(clients[new_indices[i]])       
         if args.algorithm == 'fedavg':
             fedAVG(global_model, rearranged_clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
         elif args.algorithm == 'pfedhn':
