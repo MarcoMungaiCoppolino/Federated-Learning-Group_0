@@ -104,21 +104,24 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 aggregated_weight = torch.mean(torch.stack(weights_list), dim=0)
                 aggregated_weights.append(aggregated_weight)
             update_weights(global_model, aggregated_weights)
-            net_dataidx_map_train = {i.client_id: i.test_dataloader for i in clients}
-            net_dataidx_map_test = {i.client_id: i.train_dataloader for i in clients}
             
             loader_type = 'test'
             if (epoch+1) % args.print_every == 0:
                 for cl in clients:
                    
                     cl_acc_list, cl_loss_list = [], []
-
+                    cl_val_acc_list, cl_val_loss_list = [], []
                     cl_acc, cl_loss = cl.inference(global_model, criterion, args)
+                    cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
+                    cl_val_acc_list.append(cl_val_acc)
+                    cl_val_loss_list.append(cl_val_loss)
                     # logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
                     cl_acc_list.append(cl_acc)
                     cl_loss_list.append(cl_loss)
                 acc, loss = inference(global_model, test_set, criterion,args)
-                metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
+            # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
+
+                metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list), np.mean(cl_val_acc_list), np.mean(cl_val_loss_list)]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
                 logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
@@ -130,6 +133,8 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         'Test Accuracy': acc * 100,
                         'Avg Train Accuracy': np.mean(cl_acc_list) * 100,
                         'Avg Train Loss': np.mean(cl_loss_list),
+                        'Avg Validation Accuracy': np.mean(cl_val_acc_list) * 100,
+                        'Avg Validation Loss': np.mean(cl_val_loss_list),
                         'Round': epoch + 1
                     })
             if (epoch+1) % args.print_every == 0:
@@ -196,21 +201,19 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
     pbar.update(1)
     if args.iid:
         if args.participation:
-            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}.pkl"
+            pickle_file = f"{args.metrics_dir}/metrics_{args.algorithm}_{args.iid}_{args.participation}.pkl"
         else:
-            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.gamma}.pkl"
+            pickle_file = f"{args.metrics_dir}/metrics_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}.pkl"
     else:
         if args.participation:
-            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pkl"
+            pickle_file = f"{args.metrics_dir}/metrics_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pkl"
         else:
-            pickle_file = f"{args.metrics_dir}/metrics_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
+            pickle_file = f"{args.metrics_dir}/metrics_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
 
     metrics.to_pickle(pickle_file)
     logger.info(f"Metrics saved at {pickle_file}")
     logger.info(f"Plots saved at {plot_location}")
     logger.info("Training Done!")
-
-
 
 def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set):
     nodes = clients

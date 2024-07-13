@@ -90,7 +90,7 @@ class Client:
             raise ValueError("Overlap found between val_indices and train_indices")
 
     def train(self, model, criterion, optimizer, args):
-        self.train_dataloader = self.create_dataloader()  # Recreate dataloader to shuffle data
+        self.train_dataloader = self.create_dataloader('train')  # Recreate dataloader to shuffle data
 
         model.train()
         step_count = 0  # Initialize step counter
