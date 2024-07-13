@@ -142,8 +142,6 @@ class Client:
         return accuracy, loss.item()
 
 
-
-
 def cifar_iid(args, train_dataset, test_dataset):
     val_split = args.val_split
     num_clients = args.num_users

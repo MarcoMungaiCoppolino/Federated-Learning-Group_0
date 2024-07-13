@@ -26,7 +26,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
         else:
             checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
     checkpoint_files = sorted(glob.glob(checkpoint_pattern))
-    if len(checkpoint_files):
+    if False:
         latest_checkpoint = checkpoint_files[-1]
         checkpoint = load_checkpoint(latest_checkpoint)
         # {

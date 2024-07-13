@@ -7,7 +7,7 @@ import pandas as pd
 import os
 from models import *
 from utils.algorithms import fedAVG, pFedHN
-import pickle
+import random
 
 if __name__ == '__main__':
     args = args_parser()
@@ -60,7 +60,7 @@ if __name__ == '__main__':
         clients_classes['train'].append(distributions['train'])
         clients_classes['val'].append(distributions['val'])
         clients_classes['test'].append(distributions['test'])
-        clients_classes['new_id'].append(new_indices[client_id])
+        clients_classes['new_id'].append(new_indices[client.client_id])
         clients_classes['train_indices'].append(client.train_indices)
         clients_classes['val_indices'].append(client.val_indices)
         clients_classes['test_indices'].append(client.test_indices)
