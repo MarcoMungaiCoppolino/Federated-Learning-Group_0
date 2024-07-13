@@ -6,7 +6,7 @@ from utils.wandb_utils import WandbLogger
 import pandas as pd
 import os
 from models import *
-from utils.algorithms import fedAVG
+from utils.algorithms import fedAVG, pfedHN
 import pickle
 
 if __name__ == '__main__':
@@ -23,12 +23,13 @@ if __name__ == '__main__':
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
         criterion = nn.CrossEntropyLoss().to(device)
-    train_set, test_set, user_groups_train = get_dataset(args, logger, global_model)
+    train_set, test_set, clients = get_dataset(args, logger, global_model)
 
     logger.info("######################")
     logger.info("### Configuration ####")
     logger.info("######################")
     logger.info("Dataset: {}".format(args.dataset))
+    logger.info("Algorithm: {}".format(args.algorithm))
     logger.info("Data Directory: {}".format(args.data_dir))
     logger.info("Checkpoint Directory: {}".format(args.checkpoint_path))
     logger.info(f"Mehod:{'IID' if args.iid else 'Non-IID'} Participation:{'Uniform' if args.participation else 'Skewed'}")
@@ -45,16 +46,38 @@ if __name__ == '__main__':
         logger.info(f"Running can be found at: {wandb_logger.get_execution_link()}")
     logger.info("######################")
     logger.info("######################")
-    metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Train Accuracy', 'Avg Train Loss'])
+    metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Validation Accuracy', 'Validation Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    if args.clienst_dir:
-        file_name = f'{args.clients_dir}_{args.Nc}_{args.local_ep}{f"_{args.gamma}_" if not args.participation else "_"}clients.pkl'
-        with open(file_name, 'wb') as file:
-            pickle.dump(user_groups_train, file)
-        logger.info(f'Clients saved in {file_name}')
     
-        # for client in user_groups_train:
+    clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': []}
+    for client in clients:
+        distributions = client.get_distributions()
+        clients_classes['client_id'].append(client.client_id)
+        clients_classes['train'].append(distributions['train'])
+        clients_classes['val'].append(distributions['val'])
+        clients_classes['test'].append(distributions['test'])
+    clients_classes_df = pd.DataFrame(clients_classes)
+    if args.iid:
+        if args.participation:
+            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}.pkl"
+        else:
+            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}.pkl"
+    else:
+        if args.participation:
+            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pkl"
+        else:
+            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
+
+    clients_classes_df.to_pickle(pickle_file, index=False)
+    logger.info(f"Saved clients classes distribution to {pickle_file}")
+        # for client in clients:
         #   client.print_class_distribution()
-    fedAVG(global_model, user_groups_train, criterion, args, logger, metrics, wandb_logger, device, test_set)
+    if args.algorithm == 'fedavg':
+        fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
+    elif args.algorithm == 'pfedhn':
+        pfedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
+    else:
+        # generalization problem
+        pass

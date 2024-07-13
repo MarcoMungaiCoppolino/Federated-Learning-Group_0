@@ -11,6 +11,7 @@ def args_parser():
     parser.add_argument('--wandb_run_name', type=str, default='federated_learning_uniform', help='wandb run name')
     parser.add_argument('--logfile', type=str, default='/content/logger.log', help='log file name')
     parser.add_argument('--data_dir', type=str, default='/content/drive/MyDrive/MLDL/cifar/data', help='data directory')
+    parser.add_argument('--algorithm', type=str, default='fedavg', help='algorithm')
 
     # federated arguments (Notation for the arguments followed from paper)
     parser.add_argument('--epochs', type=int, default=2000,
@@ -24,15 +25,25 @@ def args_parser():
     parser.add_argument('--val_split', type=float, default=0.2, help='validation split')
     parser.add_argument('--local_ep', type=int, default=4,
                         help="the number of local rounds: J")
+    parser.add_argument('--embed_lr', type=float, default=None)
     parser.add_argument('--local_bs', type=int, default=64,
                         help="local batch size: B")
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
     parser.add_argument('--algorithm', type=str, default='fedavg', help='Default set to FedAvg.')
-
+    parser.add_argument('--inner_wd', type=float, default=4e-3, help='weight decay')
+    parser.add_argument("--wd", type=float, default=4e-4,
+                        help="weight decay")
     # model arguments
     parser.add_argument('--model', type=str, default='cnn', help='model name')
     parser.add_argument('--checkpoint_resume', type=int, default=0, help='resume from checkpoint, 0 for False, 1 for True')
+    parser.add_argument('--optimizer', type=str, default='sgd', help="type \
+                        of optimizer")
+    parser.add_argument('--n_nodes', type=int, default=100,
+                        help="number of already seen users")
+    # todo: update this
+    parser.add_argument('--embed_dim', type=int, default=-1,
+                        help="number of already seen users")
     # other arguments
     parser.add_argument('--dataset', type=str, default='cifar', help="name \
                         of dataset")
