@@ -333,13 +333,8 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
         # logger.info(f"\n\nStep: {step+1}, Node ID: {node_id}, Loss: {prvs_loss:.4f},  Acc: {prvs_acc:.4f}")
         if (step +1 % args.print_every) == 0:
-            if args.iid:
-                filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{step+1}.pth.tar"
-            else:
-                filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{step+1}.pth.tar"
-
-            
-
+            filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{step+1}.pth.tar"
+          
             last_eval = step
             step_results, avg_loss, avg_acc, all_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
 
@@ -397,10 +392,8 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
             prev_epoch = step + 1 - args.print_every
             if (step + 1) > args.print_every and prev_epoch != 1900:
                 if (step + 1 -10) % args.backup != 0:
-                    if args.iid:
-                        prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
-                    else:
-                        prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                    prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                    
                     if os.path.exists(prev_filename):
                         os.remove(prev_filename)
             # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
