@@ -6,7 +6,7 @@ from utils.wandb_utils import WandbLogger
 import pandas as pd
 import os
 from models import *
-from utils.algorithms import fedAVG, pfedHN
+from utils.algorithms import fedAVG, pFedHN
 import pickle
 
 if __name__ == '__main__':
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
         criterion = nn.CrossEntropyLoss().to(device)
-    train_set, test_set, clients = get_dataset(args, logger, global_model)
+    train_set, test_set, clients = get_dataset(args)
 
     logger.info("######################")
     logger.info("### Configuration ####")
@@ -70,14 +70,14 @@ if __name__ == '__main__':
         else:
             pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
 
-    clients_classes_df.to_pickle(pickle_file, index=False)
+    clients_classes_df.to_pickle(pickle_file)
     logger.info(f"Saved clients classes distribution to {pickle_file}")
         # for client in clients:
         #   client.print_class_distribution()
     if args.algorithm == 'fedavg':
         fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
     elif args.algorithm == 'pfedhn':
-        pfedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
+        pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
     else:
         # generalization problem
         pass

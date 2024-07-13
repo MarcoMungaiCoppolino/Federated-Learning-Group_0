@@ -16,7 +16,20 @@ class Client:
         self.train_dataloader = self.create_dataloader("train")
         self.val_dataloader = self.create_dataloader("val")
         self.test_dataloader = self.create_dataloader("test")
+    def get_class_distribution(self, indices, dataset):
+        targets = [dataset.targets[idx] for idx in indices]
+        return dict(Counter(targets))
 
+    def get_distributions(self):
+        train_dist = self.get_class_distribution(self.train_indices, self.train_dataset)
+        val_dist = self.get_class_distribution(self.val_indices, self.train_dataset)
+        test_dist = self.get_class_distribution(self.test_indices, self.test_dataset)
+
+        return {
+            'train': train_dist,
+            'val': val_dist,
+            'test': test_dist
+        }
     def create_dataloader(self, dataset_type):
         dataset_dict = {
             "train": (self.train_dataset, self.train_indices),
@@ -28,6 +41,7 @@ class Client:
         subset = Subset(dataset, indices)
         dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
         return dataloader
+    
     def print_class_distribution(self):
         def get_class_distribution(indices, dataset):
             targets = [dataset.targets[idx] for idx in indices]

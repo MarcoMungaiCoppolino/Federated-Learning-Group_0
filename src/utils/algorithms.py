@@ -200,6 +200,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
     logger.info("Training Done!")
 
 
+
 def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set):
     nodes = clients
     clients_distribs = {client.client_id: 0 for client in clients}
@@ -318,9 +319,9 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
         # logger.info(f"\n\nStep: {step+1}, Node ID: {node_id}, Loss: {prvs_loss:.4f},  Acc: {prvs_acc:.4f}")
         if step % args.print_every == 0:
             if args.iid:
-                filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{step+1}.pth.tar"
             else:
-                filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{step+1}.pth.tar"
 
             
 
