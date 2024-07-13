@@ -332,7 +332,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
         optimizer.step()
 
         # logger.info(f"\n\nStep: {step+1}, Node ID: {node_id}, Loss: {prvs_loss:.4f},  Acc: {prvs_acc:.4f}")
-        if step % args.print_every == 0:
+        if (step +1 % args.print_every) == 0:
             if args.iid:
                 filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{step+1}.pth.tar"
             else:
