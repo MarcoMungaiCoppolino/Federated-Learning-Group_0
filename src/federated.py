@@ -51,13 +51,16 @@ if __name__ == '__main__':
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     
-    clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': [], 'train_indices': [], 'val_indices': [], 'test_indices': []}
+    clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': [], 'new_id': [], 'train_indices': [], 'val_indices': [], 'test_indices': []}
+    new_indices = list(range(100))
+    random.shuffle(new_indices)
     for client in clients:
         distributions = client.get_distributions()
         clients_classes['client_id'].append(client.client_id)
         clients_classes['train'].append(distributions['train'])
         clients_classes['val'].append(distributions['val'])
         clients_classes['test'].append(distributions['test'])
+        clients_classes['new_id'].append(new_indices[client_id])
         clients_classes['train_indices'].append(client.train_indices)
         clients_classes['val_indices'].append(client.val_indices)
         clients_classes['test_indices'].append(client.test_indices)
@@ -79,10 +82,16 @@ if __name__ == '__main__':
     logger.info(f"Saved clients classes distribution to {pickle_file}")
         # for client in clients:
         #   client.print_class_distribution()
-    if args.algorithm == 'fedavg':
-        fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
-    elif args.algorithm == 'pfedhn':
-        pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
+    if args.n_nodes == args.num_users:
+        if args.algorithm == 'fedavg':
+            fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
+        elif args.algorithm == 'pfedhn':
+            pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
     else:
-        # generalization problem
-        pass
+        rearranged_clients = []
+        for i in range(n_nodes):
+            rearranged_client.append(clients[new_indices[i])        
+        if args.algorithm == 'fedavg':
+            fedAVG(global_model, rearranged_clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
+        elif args.algorithm == 'pfedhn':
+            pFedHN(global_model, rearranged_clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
