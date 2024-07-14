@@ -30,8 +30,9 @@ for gamma in "${gammas[@]}"; do
             --model lstm \
             --lr 1 \
             --iid 1 \
-            --epochs 2000 \
+            --epochs 200 \
             --data_dir "$data_dir" \
+            --print_every 1 \
             $gpu_arg \
             --wandb_key "$wandb_key" \
             --wandb_username "$wandb_username" \
@@ -48,8 +49,9 @@ for gamma in "${gammas[@]}"; do
             --dataset shakespeare \
             --iid 1 \
             --model lstm \
+            --print_every 1 \
             --lr 1 \
-            --epochs 2000 \
+            --epochs 200 \
             --checkpoint_path "$checkpoint_path" \
             --data_dir "$data_dir" \
             $gpu_arg \

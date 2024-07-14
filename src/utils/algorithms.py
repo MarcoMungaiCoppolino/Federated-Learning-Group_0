@@ -110,7 +110,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
             
             loader_type = 'test'
             if (epoch+1) % args.print_every == 0:
-                if args.datast ==' cifar':
+                if args.dataset ==' cifar':
                     for cl in clients:
                         cl_acc_list, cl_loss_list = [], []
                         

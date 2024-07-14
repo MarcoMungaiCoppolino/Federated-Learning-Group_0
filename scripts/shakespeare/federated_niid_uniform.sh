@@ -27,10 +27,11 @@ do
     CMD="python3 $python_script \
         --dataset shakespeare \
         --model lstm \
-        --epochs 2000 \
+        --epochs 200 \
         --checkpoint_path $checkpoint_path \
         --data_dir $data_dir \
         --lr 1 \
+        --print_every 1 \
         --local_ep $j \
         --participation 1 \
         --logfile $logfile \

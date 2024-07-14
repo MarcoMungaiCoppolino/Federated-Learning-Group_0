@@ -24,8 +24,9 @@ if [ -n "$wandb_key" ]; then
         --model lstm \
         --iid 1 \
         --lr 1 \
-        --epochs 2000 \
+        --epochs 200 \
         --data_dir "$data_dir" \
+        --print_every 1 \
         $gpu_arg \
         --wandb_key "$wandb_key" \
         --wandb_username "$wandb_username" \
@@ -39,8 +40,9 @@ else
     python3 "$python_script" \
         --dataset shakespeare \
         --iid 1 \
+        --print_every 1 \
         --lr 1 \
-        --epochs 2000 \
+        --epochs 200 \
         --data_dir "$data_dir" \
         $gpu_arg \
         --local_ep 4 \

@@ -33,9 +33,10 @@ do
             --dataset shakespeare \
             --model lstm \
             --checkpoint_path $checkpoint_path \
-            --epochs 2000 \
+            --epochs 200 \
             --data_dir $data_dir \
             --local_ep $j \
+            --print_every 1 \
             --lr 1 \
             --participation 1 \
             --logfile $logfile \
