@@ -101,4 +101,6 @@ if __name__ == '__main__':
         if args.algorithm == 'fedavg':
             fedAVG(global_model, rearranged_clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
         elif args.algorithm == 'pfedhn':
+            metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Avg Test Loss', 'Avg Test Accuracy', 'Val Accuracy', 'Avg Validation Loss', 'Avg Validation Accuracy'])
+
             pFedHN(global_model, rearranged_clients, criterion, args, logger, metrics, wandb_logger, device, test_set)
