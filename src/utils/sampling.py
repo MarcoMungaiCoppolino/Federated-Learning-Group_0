@@ -191,7 +191,7 @@ class ShakespeareClient:
         step_count = 0
         while step_count < self.args.local_ep:
             for inputs, labels in self.train_dataloader:
-                labels = labels.squeeze()
+                labels = labels.squeeze(1)
                 if self.args.device == 'cuda':
                     inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
                 optimizer.zero_grad()
@@ -200,7 +200,7 @@ class ShakespeareClient:
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                step_count += 1
+                step_count+=1
                 if step_count >= self.args.local_ep:
                     break
         return model

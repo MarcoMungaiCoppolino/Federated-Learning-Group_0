@@ -113,7 +113,6 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 if args.dataset ==' cifar':
                     for cl in clients:
                         cl_acc_list, cl_loss_list = [], []
-                        
                         cl_acc, cl_loss = cl.inference(global_model, criterion, args)
                         cl_val_acc_list, cl_val_loss_list = [], []
                         cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
@@ -123,12 +122,12 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         cl_acc_list.append(cl_acc)
                         cl_loss_list.append(cl_loss)
                 
-                acc, loss = inference(global_model, test_set, criterion,args) if args.dataset == 'cifar' else shakespeare_inference(global_model, test_dataloader, criterion, args)
+                acc, loss = inference(global_model, test_set, criterion, args) if args.dataset == 'cifar' else shakespeare_inference(global_model, test_dataloader, criterion, args)
             # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
                 if args.dataset == 'cifar':
                     metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list), np.mean(cl_val_acc_list), np.mean(cl_val_loss_list)]
-                else:
-                    metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
+                # else:
+                #     metrics.loc[len(metrics)] = [epoch+1, acc, loss,0,0,0,0]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
                 if args.dataset == 'cifar':
@@ -158,8 +157,8 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                     'loss': loss,
                     'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
                     'accuracy': acc,
-                    'train_accuracy': np.mean(cl_acc_list) * 100,
-                    'train_loss': np.mean(cl_loss_list),
+                    'train_accuracy': np.mean(cl_acc_list) * 100 if args.dataset == 'cifar' else acc*100,
+                    'train_loss': np.mean(cl_loss_list) if args.dataset == 'cifar' else loss,
                 }
                 save_checkpoint(checkpoint, filename=filename)
 
