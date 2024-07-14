@@ -20,9 +20,12 @@ if __name__ == '__main__':
     device = 'cuda' if args.gpu else 'cpu'
     logger.debug(f"Using {device} device")
     args.device = device
+    criterion = nn.CrossEntropyLoss().to(device)
+
     if args.dataset == 'cifar':
         global_model = CIFARLeNet().to(device)
-        criterion = nn.CrossEntropyLoss().to(device)
+    else:
+        global_model = CharLSTM().to(device)
     train_set, test_set, clients = get_dataset(args)
 
     logger.info("######################")
@@ -46,7 +49,11 @@ if __name__ == '__main__':
         logger.info(f"Running can be found at: {wandb_logger.get_execution_link()}")
     logger.info("######################")
     logger.info("######################")
-    metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
+    if args.dataset == 'cifar':
+        metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
+    else:
+        metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss'])
+
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -58,12 +65,13 @@ if __name__ == '__main__':
         distributions = client.get_distributions()
         clients_classes['client_id'].append(client.client_id)
         clients_classes['train'].append(distributions['train'])
-        clients_classes['val'].append(distributions['val'])
         clients_classes['test'].append(distributions['test'])
         clients_classes['new_id'].append(new_indices[client.client_id])
         clients_classes['train_indices'].append(client.train_indices)
-        clients_classes['val_indices'].append(client.val_indices)
         clients_classes['test_indices'].append(client.test_indices)
+        if args.dataset == 'cifar':
+            clients_classes['val'].append(distributions['val'])
+            clients_classes['val_indices'].append(client.val_indices)
         
         
     clients_classes_df = pd.DataFrame(clients_classes)

@@ -34,11 +34,12 @@ def eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type):
             results[node_id]['loss'] = running_loss / (batch_count + 1)
             results[node_id]['correct'] = running_correct
             results[node_id]['total'] = running_samples
+            results[node_id]['accuracy'] = running_correct / running_samples
 
         return results
 
     curr_results = evaluate(nodes, num_nodes, hnet, net, criterion, device, loader_type=loader_type)
-
+    avg_of_all_nodes = np.mean([val['accuracy'] for val in curr_results.values()])
     total_correct = sum([val['correct'] for val in curr_results.values()])
     total_samples = sum([val['total'] for val in curr_results.values()])
     avg_loss = np.mean([val['loss'] for val in curr_results.values()])
@@ -46,7 +47,7 @@ def eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type):
 
     all_acc = [val['correct'] / val['total'] for val in curr_results.values()]
 
-    return curr_results, avg_loss, avg_acc, all_acc
+    return curr_results, avg_loss, avg_acc, all_acc, avg_of_all_nodes
 
 
 
@@ -72,6 +73,27 @@ def initialize_hidden_state(num_layers, hidden_size, batch_size):
 def save_checkpoint(state, filename="checkpoint.pth.tar"):
     torch.save(state, filename)
 
+def shakespeare_inference(model, dataloader, criterion, args):
+    model.eval()
+    correct = 0
+    total = 0
+    test_loss = 0
+    with torch.no_grad():
+        for _, (inputs, labels) in enumerate(dataloader):
+            labels = labels.squeeze(1)
+            if args.device == 'cuda':
+                nputs, labels = inputs.cuda(), labels.cuda()
+            hidden = model.init_hidden(inputs.size(0))
+            outputs,_ = model(inputs,hidden)
+            loss = criterion(outputs, labels)
+            test_loss += loss.item()
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    test_loss = test_loss / len(dataloader)
+    accuracy = correct / total
+    return accuracy, test_loss
+
 def inference(model, test_set, criterion, args):
     model.eval()
     correct, total, test_loss = 0.0, 0.0, 0.0
@@ -92,4 +114,4 @@ def inference(model, test_set, criterion, args):
     accuracy = correct / total
     return accuracy, test_loss
 
-__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'eval_pfedhn']
+__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'eval_pfedhn','shakespeare_inference']

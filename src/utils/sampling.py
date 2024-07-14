@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 from collections import Counter
+from utils.nlp_utils import *
 
 class Client:
     def __init__(self, args, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices):
@@ -30,6 +31,7 @@ class Client:
             'val': val_dist,
             'test': test_dist
         }
+    
     def create_dataloader(self, dataset_type):
         dataset_dict = {
             "train": (self.train_dataset, self.train_indices),
@@ -141,6 +143,253 @@ class Client:
             accuracy = correct / len(labels)
         return accuracy, loss.item()
 
+class ShakespeareClient:
+    def __init__(self, args, client_id, train_subset,test_subset):
+        '''
+        Initializes a ShakespeareClient instance.
+
+        Parameters:
+        args (Namespace): Configuration arguments containing various.
+        client_id (str): Identifier for the client.
+        train_dataset (Dataset): Subset of the dataset assigned to the client.
+        test_subset (Dataset): Subset of the dataset assigned to the client.
+        batch_size (int): The size of each batch for data loading (default is 64).
+        '''
+        self.client_id = client_id
+        self.train_dataset = train_subset
+        self.test_dataset = test_subset
+        self.train_indices = list(range(len(train_subset)))
+        self.test_indices = list(range(len(test_subset)))
+        self.batch_size = args.local_bs
+        self.args = args
+        self.train_dataloader = self.create_dataloader('train')
+        self.test_dataloader = self.create_dataloader('test')
+    def get_class_distribution(self, indices, dataset):
+        targets = [dataset.targets[idx] for idx in indices]
+        return dict(Counter(targets))
+
+    def get_distributions(self):
+        train_dist = self.get_class_distribution(self.train_indices, self.train_dataset)
+        test_dist = self.get_class_distribution(self.test_indices, self.test_dataset)
+
+        return {
+            'train': train_dist,
+            'test': test_dist
+        }
+    def print_class_distribution(self):
+        def get_class_distribution(indices, dataset):
+            targets = [dataset.targets[idx] for idx in indices]
+            return dict(Counter(targets))
+
+        train_dist = get_class_distribution(self.train_indices, self.train_dataset)
+        test_dist = get_class_distribution(self.test_indices, self.test_dataset)
+
+        print(f"Client {self.client_id} class distribution:")
+        print(f"  Train: {train_dist}")
+        print(f"  Test: {test_dist}")
+        
+    def print_class_distribution(self):
+        def get_class_distribution(indices, dataset):
+            targets = [dataset.targets[idx] for idx in indices]
+            return dict(Counter(targets))
+
+        train_dist = get_class_distribution(self.train_indices, self.train_dataset)
+        test_dist = get_class_distribution(self.test_indices, self.test_dataset)
+
+        print(f"Client {self.client_id} class distribution:")
+        print(f"  Train: {train_dist}")
+        print(f"  Test: {test_dist}")
+
+    def check_indices(self):
+        def has_duplicates(lst):
+            return len(lst) != len(set(lst))
+
+        if has_duplicates(self.train_indices):
+            raise ValueError("Duplicate entries found in train_indices")
+        if has_duplicates(self.test_indices):
+            raise ValueError("Duplicate entries found in test_indices")
+
+    def create_dataloader(self, loader_type='train'):
+        '''
+        Creates a DataLoader for the client's dataset.
+
+        Returns:
+        DataLoader: A DataLoader instance for the dataset with specified batch size and shuffling enabled.
+        '''
+        dataloader = DataLoader(self.train_dataset if loader_type =='train' else self.test_dataset 
+                                , batch_size=self.batch_size, shuffle=loader_type =='train')
+        return dataloader
+
+    def train(self, model, criterion, optimizer, local_step=4):
+        '''
+        Trains the model on the client's dataset for a specified number of local steps.
+
+        Parameters:
+        model (nn.Module): The model to be trained.
+        criterion (nn.Module): The loss function.
+        optimizer (Optimizer): The optimizer for updating model parameters.
+        local_step (int): Number of local steps to train (default is 4).
+
+        Returns:
+        nn.Module: The trained model.
+        '''
+        model.train()
+        step_count = 0
+        while step_count < local_step:
+            for inputs, labels in self.train_dataloader:
+                labels = labels.squeeze(1)
+                if self.args.device == 'cuda':
+                    inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
+                optimizer.zero_grad()
+                hidden = model.init_hidden(inputs.size(0))  # Initialize hidden state for current batch size
+                outputs, hidden = model(inputs, hidden)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                step_count += 1
+                if step_count >= local_step:
+                    break
+        return model
+
+    def inference(self, model, criterion):
+        '''
+        Performs inference on the client's dataset to evaluate the model.
+
+        Parameters:
+        model (nn.Module): The model to be evaluated.
+        criterion (nn.Module): The loss function.
+
+        Returns:
+        tuple: Accuracy and average loss over the dataset.
+        '''
+        model.eval()
+        correct, total, test_loss = 0.0, 0.0, 0.0
+        with torch.no_grad():
+            for inputs, labels in self.test_dataloader:
+                labels = labels.squeeze(1)
+                if self.args.device == 'cuda':
+                    inputs, labels = inputs.cuda(), labels.cuda()
+                hidden = model.init_hidden(inputs.size(0))
+                outputs, hidden = model(inputs, hidden)
+                loss = criterion(outputs, labels)
+                test_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        test_loss = test_loss / len(self.train_dataloader)
+        accuracy = correct / total
+        return accuracy, test_loss
+
+class ShakespeareObjectCrop:
+    def __init__(self, data_path, dataset_prefix, show_loading=False, crop_amount=2000, tst_ratio=5, rand_seed=0):
+        '''
+        Initializes a ShakespeareObjectCrop instance.
+
+        Parameters:
+        data_path (str): Path to the directory containing training and test data.
+        dataset_prefix (str): Prefix to be used for the dataset name.
+        show_loading (bool): Flag to show loading information (default is False).
+        crop_amount (int): Amount of data to crop for each client (default is 2000).
+        tst_ratio (int): Ratio of test data to crop amount (default is 5).
+        rand_seed (int): Random seed for reproducibility (default is 0).
+        '''
+        self.dataset = 'shakespeare'
+        self.name = dataset_prefix
+        users, groups, train_data, test_data = read_data(data_path + 'train/', data_path + 'test/')
+        self.users = users
+        self.n_client = len(users)
+        self.user_idx = np.asarray(list(range(self.n_client)))
+        self.clnt_x = list(range(self.n_client))
+        self.clnt_y = list(range(self.n_client))
+        tst_data_count = 0
+
+        for clnt in range(self.n_client):
+            np.random.seed(rand_seed + clnt)
+            if show_loading:
+                print(clnt)
+                print(len(train_data[users[clnt]]['x']))
+                print(crop_amount)
+            start = np.random.randint(len(train_data[users[clnt]]['x']) - crop_amount)
+            self.clnt_x[clnt] = np.asarray(train_data[users[clnt]]['x'])[start:start + crop_amount]
+            self.clnt_y[clnt] = np.asarray(train_data[users[clnt]]['y'])[start:start + crop_amount]
+
+        tst_data_count = (crop_amount // tst_ratio) * self.n_client
+        self.tst_x = list(range(tst_data_count))
+        self.tst_y = list(range(tst_data_count))
+
+        tst_data_count = 0
+        for clnt in range(self.n_client):
+            curr_amount = (crop_amount // tst_ratio)
+            np.random.seed(rand_seed + clnt)
+            start = np.random.randint(len(test_data[users[clnt]]['x']) - curr_amount)
+            self.tst_x[tst_data_count: tst_data_count + curr_amount] = np.asarray(test_data[users[clnt]]['x'])[start:start + curr_amount]
+            self.tst_y[tst_data_count: tst_data_count + curr_amount] = np.asarray(test_data[users[clnt]]['y'])[start:start + curr_amount]
+            tst_data_count += curr_amount
+
+        self.clnt_x = np.asarray(self.clnt_x)
+        self.clnt_y = np.asarray(self.clnt_y)
+        self.tst_x = np.asarray(self.tst_x)
+        self.tst_y = np.asarray(self.tst_y)
+
+        # Convert characters to numbers
+        self.clnt_x_char = np.copy(self.clnt_x)
+        self.clnt_y_char = np.copy(self.clnt_y)
+        self.tst_x_char = np.copy(self.tst_x)
+        self.tst_y_char = np.copy(self.tst_y)
+        self.clnt_x = list(range(len(self.clnt_x_char)))
+        self.clnt_y = list(range(len(self.clnt_x_char)))
+
+        for clnt in range(len(self.clnt_x_char)):
+            clnt_list_x = list(range(len(self.clnt_x_char[clnt])))
+            clnt_list_y = list(range(len(self.clnt_x_char[clnt])))
+            for idx in range(len(self.clnt_x_char[clnt])):
+                clnt_list_x[idx] = np.asarray(word_to_indices(self.clnt_x_char[clnt][idx]))
+                clnt_list_y[idx] = np.argmax(np.asarray(letter_to_vec(self.clnt_y_char[clnt][idx]))).reshape(-1)
+            self.clnt_x[clnt] = np.asarray(clnt_list_x)
+            self.clnt_y[clnt] = np.asarray(clnt_list_y)
+
+        self.clnt_x = np.asarray(self.clnt_x)
+        self.clnt_y = np.asarray(self.clnt_y)
+        self.tst_x = list(range(len(self.tst_x_char)))
+        self.tst_y = list(range(len(self.tst_x_char)))
+
+        for idx in range(len(self.tst_x_char)):
+            self.tst_x[idx] = np.asarray(word_to_indices(self.tst_x_char[idx]))
+            self.tst_y[idx] = np.argmax(np.asarray(letter_to_vec(self.tst_y_char[idx]))).reshape(-1)
+        self.tst_x = np.asarray(self.tst_x)
+        self.tst_y = np.asarray(self.tst_y)
+
+class ShakespeareObjectCrop_noniid:
+    def __init__(self, data_path, dataset_prefix, n_client=100, crop_amount=2000, tst_ratio=5, rand_seed=0):
+        '''
+        Initializes a ShakespeareObjectCrop_noniid instance.
+
+        Parameters:
+        data_path (str): Path to the directory containing training and test data.
+        dataset_prefix (str): Prefix to be used for the dataset name.
+        n_client (int): Number of clients to sample (default is 100).
+        crop_amount (int): Amount of data to crop for each client (default is 2000).
+        tst_ratio (int): Ratio of test data to crop amount (default is 5).
+        rand_seed (int): Random seed for reproducibility (default is 0).
+        '''
+        self.dataset = 'shakespeare'
+        self.name = dataset_prefix
+        users, groups, train_data, test_data = read_data(data_path + 'train/', data_path + 'test/')
+        self.users = users
+        tst_data_count_per_clnt = (crop_amount // tst_ratio)
+
+        # Group clients that have at least crop_amount datapoints
+        arr = []
+        for clnt in range(len(users)):
+            if (len(np.asarray(train_data[users[clnt]]['y'])) > crop_amount
+                    and len(np.asarray(test_data[users[clnt]]['y'])) > tst_data_count_per_clnt):
+                arr.append(clnt)
+
+        # choose n_client clients randomly
+        self.n_client = n_client
+        np.random.seed(rand_seed)
+        np.random.shuffle(arr)
+        self.user_idx = arr[:self.n_client]
 
 def cifar_iid(args, train_dataset, test_dataset):
     val_split = args.val_split

@@ -110,22 +110,31 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 for cl in clients:
                    
                     cl_acc_list, cl_loss_list = [], []
-                    cl_val_acc_list, cl_val_loss_list = [], []
+                    
                     cl_acc, cl_loss = cl.inference(global_model, criterion, args)
-                    cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
-                    cl_val_acc_list.append(cl_val_acc)
-                    cl_val_loss_list.append(cl_val_loss)
+                    if args.dataset == 'cifar':
+                        cl_val_acc_list, cl_val_loss_list = [], []
+                        cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
+                        cl_val_acc_list.append(cl_val_acc)
+                        cl_val_loss_list.append(cl_val_loss)
                     # logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
                     cl_acc_list.append(cl_acc)
                     cl_loss_list.append(cl_loss)
-                acc, loss = inference(global_model, test_set, criterion,args)
+                acc, loss = inference(global_model, test_set, criterion,args) if args.dataset == 'cifar' else shakespeare_inference(global_model, test_set, criterion, args)
             # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
-
-                metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list), np.mean(cl_val_acc_list), np.mean(cl_val_loss_list)]
+                if args.dataset == 'cifar':
+                    metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list), np.mean(cl_val_acc_list), np.mean(cl_val_loss_list)]
+                else:
+                    metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
                 logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
-                logger.info(f'Avg Validation Loss: {np.mean(cl_val_loss_list)} Average Validation Accuracy: {np.mean(cl_val_acc_list)}')
+                if args.dataset == 'cifar':
+                    logger.info(f'Avg Validation Loss: {np.mean(cl_val_loss_list)} Average Validation Accuracy: {np.mean(cl_val_acc_list)}')
+                    wandb_logger.log({
+                         'Avg Validation Accuracy': np.mean(cl_val_acc_list) * 100,
+                        'Avg Validation Loss': np.mean(cl_val_loss_list),
+                    })
                 wandb_logger.log({
                         # 'Global Model Train Accuracy': train_acc * 100,
                         # 'Global Model Test Accuracy': test_acc * 100,
@@ -134,8 +143,6 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         'Test Accuracy': acc * 100,
                         'Avg Train Accuracy': np.mean(cl_acc_list) * 100,
                         'Avg Train Loss': np.mean(cl_loss_list),
-                        'Avg Validation Accuracy': np.mean(cl_val_acc_list) * 100,
-                        'Avg Validation Loss': np.mean(cl_val_loss_list),
                         'Round': epoch + 1
                     })
             if (epoch+1) % args.print_every == 0:
@@ -347,7 +354,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
             results['test_avg_loss'].append(avg_loss)
             results['test_avg_acc'].append(avg_acc)
 
-            _, val_avg_loss, val_avg_acc, _ = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
+            _, val_avg_loss, val_avg_acc, _, avg_of_all_nodes = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
             if best_acc < val_avg_acc:
                 best_acc = val_avg_acc
                 best_step = step
@@ -364,11 +371,11 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
             results['test_best_min_based_on_step'].append(test_best_min_based_on_step)
             results['test_best_max_based_on_step'].append(test_best_max_based_on_step)
             results['test_best_std_based_on_step'].append(test_best_std_based_on_step)
+            results['avg_of_all_nodes'].append(avg_of_all_nodes)
 
-            acc, loss = inference(global_model, test_set, criterion,args)
             wandb_logger.log({
                 'Test Loss': loss,
-                'Test Accuracy': acc * 100,
+                'Test Accuracy': results['avg_of_all_nodes'][-1] * 100,
                 'Round': step + 1
             })
             for key in results:
@@ -380,7 +387,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 'hn_state_dict': hnet.state_dict(),
                 'test_loss': loss,
                 'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
-                'test_accuracy': acc,
+                'test_accuracy': results['avg_of_all_nodes'][-1],
                 'test_avg_loss': results['test_avg_loss'][-1],
                 'test_avg_acc': results['test_avg_acc'][-1],
                 'val_avg_loss': results['val_avg_loss'][-1],
@@ -398,7 +405,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         os.remove(prev_filename)
             # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
             
-            metrics.loc[len(metrics)] = [step + 1, acc, loss, results['test_avg_acc'][-1], results['test_avg_loss'][-1], results['val_avg_acc'][-1], results['val_avg_loss'][-1]]
+            metrics.loc[len(metrics)] = [step + 1, results['avg_of_all_nodes'][-1], loss, results['test_avg_acc'][-1], results['test_avg_loss'][-1], results['val_avg_acc'][-1], results['val_avg_loss'][-1]]
     if step != last_eval:
         _, val_avg_loss, val_avg_acc, _ = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
         step_results, avg_loss, avg_acc, all_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
