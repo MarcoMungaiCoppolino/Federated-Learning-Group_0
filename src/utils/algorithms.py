@@ -110,12 +110,11 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
             
             loader_type = 'test'
             if (epoch+1) % args.print_every == 0:
-                for cl in clients:
-                   
-                    cl_acc_list, cl_loss_list = [], []
-                    
-                    cl_acc, cl_loss = cl.inference(global_model, criterion, args) if args.dataset == 'cifar' else 0, 0
-                    if args.dataset == 'cifar':
+                if args.datast ==' cifar':
+                    for cl in clients:
+                        cl_acc_list, cl_loss_list = [], []
+                        
+                        cl_acc, cl_loss = cl.inference(global_model, criterion, args)
                         cl_val_acc_list, cl_val_loss_list = [], []
                         cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
                         cl_val_acc_list.append(cl_val_acc)
@@ -123,6 +122,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         # logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
                         cl_acc_list.append(cl_acc)
                         cl_loss_list.append(cl_loss)
+                
                 acc, loss = inference(global_model, test_set, criterion,args) if args.dataset == 'cifar' else shakespeare_inference(global_model, test_dataloader, criterion, args)
             # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
                 if args.dataset == 'cifar':

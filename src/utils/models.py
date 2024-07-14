@@ -79,13 +79,13 @@ def shakespeare_inference(model, dataloader, criterion, args):
     total = 0
     test_loss = 0
     with torch.no_grad():
-        for _, (inputs, labels) in enumerate(dataloader):
-            labels = labels.squeeze()
-            if args.device == 'cuda':
-                inputs, labels = inputs.cuda(), labels.cuda()
+        for batch_idx, (inputs, labels) in enumerate(dataloader):
+            
+            labels = labels.squeeze(1)          
+            inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
             hidden = init_hidden(batch_size=inputs.size(0))
-            outputs,_ = model(inputs,hidden)
-            loss = criterion(outputs, labels)
+            outputs,_ = model(inputs,hidden)            
+            loss = criterion(outputs, labels)            
             test_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)

@@ -187,24 +187,6 @@ class ShakespeareClient:
         Returns:
         nn.Module: The trained model.
         '''
-
-        # self.train_dataloader = self.create_dataloader('train')  # Recreate dataloader to shuffle data
-
-        # model.train()
-        # step_count = 0  # Initialize step counter
-        # while step_count < args.local_ep:  # Loop until local steps are reached
-        #     for inputs, labels in self.train_dataloader:
-        #         if args.device == 'cuda':
-        #             inputs, labels = inputs.cuda(), labels.cuda()
-        #         optimizer.zero_grad()
-        #         outputs = model(inputs)
-        #         loss = criterion(outputs, labels)
-        #         loss.backward()
-        #         optimizer.step()
-        #         step_count += 1
-        #         if step_count >= args.local_ep:  # Exit if local steps are reached
-        #             break
-        # return model
         model.train()
         step_count = 0
         while step_count < self.args.local_ep:

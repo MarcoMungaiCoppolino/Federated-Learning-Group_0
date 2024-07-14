@@ -131,11 +131,11 @@ class CNNHyper(nn.Module):
 class CharLSTM(nn.Module):
     def __init__(self):
         super(CharLSTM, self).__init__()
-        input_size = 80  #Number of the input data , i.e length of the SENTENCE
+        input_size = 80  
         embedding_size = 8
         hidden_size = 256
         num_layers = 2
-        output_size = 80  #number of distinct chatracters in the output
+        output_size = 80
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.embedding = nn.Embedding(input_size, embedding_size)
