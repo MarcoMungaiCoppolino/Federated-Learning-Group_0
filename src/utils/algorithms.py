@@ -110,9 +110,9 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
             
             loader_type = 'test'
             if (epoch+1) % args.print_every == 0:
-                if args.dataset ==' cifar':
+                if args.dataset =='cifar':
+                    cl_acc_list, cl_loss_list = [], []
                     for cl in clients:
-                        cl_acc_list, cl_loss_list = [], []
                         cl_acc, cl_loss = cl.inference(global_model, criterion, args)
                         cl_val_acc_list, cl_val_loss_list = [], []
                         cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
@@ -164,7 +164,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
                 # Remove the previous checkpoint unless it's a multiple of the backup parameter
                 prev_epoch = epoch + 1 - args.print_every
-                if (epoch + 1) > args.print_every and (args.prev_epoch != 1900 or args.prev_epoch != 2000):
+                if (epoch + 1) > args.print_every and (prev_epoch != 1900 or prev_epoch != 2000):
                     if (epoch + 1 -10) % args.backup != 0:
                         prev_epoch = epoch + 1 - args.print_every
 
