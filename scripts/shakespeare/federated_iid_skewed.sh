@@ -28,6 +28,7 @@ for gamma in "${gammas[@]}"; do
         python3 "$python_script" \
             --dataset shakespeare \
             --model lstm \
+            --lr 1 \
             --iid 1 \
             --epochs 2000 \
             --data_dir "$data_dir" \
@@ -47,6 +48,7 @@ for gamma in "${gammas[@]}"; do
             --dataset shakespeare \
             --iid 1 \
             --model lstm \
+            --lr 1 \
             --epochs 2000 \
             --checkpoint_path "$checkpoint_path" \
             --data_dir "$data_dir" \

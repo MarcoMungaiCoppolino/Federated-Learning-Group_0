@@ -36,6 +36,7 @@ do
             --epochs 2000 \
             --data_dir $data_dir \
             --local_ep $j \
+            --lr 1 \
             --participation 1 \
             --logfile $logfile \
             --metrics_dir $metrics_dir \

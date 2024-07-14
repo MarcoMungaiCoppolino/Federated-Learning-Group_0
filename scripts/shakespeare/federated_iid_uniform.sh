@@ -23,6 +23,7 @@ if [ -n "$wandb_key" ]; then
         --dataset shakespeare \
         --model lstm \
         --iid 1 \
+        --lr 1 \
         --epochs 2000 \
         --data_dir "$data_dir" \
         $gpu_arg \
@@ -38,6 +39,7 @@ else
     python3 "$python_script" \
         --dataset shakespeare \
         --iid 1 \
+        --lr 1 \
         --epochs 2000 \
         --data_dir "$data_dir" \
         $gpu_arg \

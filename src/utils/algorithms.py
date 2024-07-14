@@ -90,7 +90,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 idx_users = np.random.choice(clients, int(len(clients) * args.frac), p=dirichlet_probs)
 
             for user in idx_users:
-                clients_distribs[user.client_id] = 1
+                clients_distribs[user.client_id] += 1
             user_weights = []
             for idx in idx_users:
                 if args.dataset == 'cifar':
@@ -120,9 +120,9 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')
                         cl_val_acc_list.append(cl_val_acc)
                         cl_val_loss_list.append(cl_val_loss)
-                    # logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
-                    cl_acc_list.append(cl_acc)
-                    cl_loss_list.append(cl_loss)
+                        # logger.info(f'Client {cl.client_id} Test Loss: {cl_loss} Test Accuracy: {100*cl_acc}%')
+                        cl_acc_list.append(cl_acc)
+                        cl_loss_list.append(cl_loss)
                 acc, loss = inference(global_model, test_set, criterion,args) if args.dataset == 'cifar' else shakespeare_inference(global_model, test_dataloader, criterion, args)
             # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
                 if args.dataset == 'cifar':
@@ -131,8 +131,8 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                     metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list)]
                 logger.info(f' \nAvg Training Stats after {epoch+1} global rounds:')
                 logger.info(f'Test Loss: {loss} Test Accuracy: {100*acc}%')
-                logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
                 if args.dataset == 'cifar':
+                    logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
                     logger.info(f'Avg Validation Loss: {np.mean(cl_val_loss_list)} Average Validation Accuracy: {np.mean(cl_val_acc_list)}')
                     wandb_logger.log({
                          'Avg Validation Accuracy': np.mean(cl_val_acc_list) * 100,
@@ -144,39 +144,36 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         # 'Test Avg Loss': test_avg_loss,
                         'Test Loss': loss,
                         'Test Accuracy': acc * 100,
-                        'Avg Train Accuracy': np.mean(cl_acc_list) * 100,
-                        'Avg Train Loss': np.mean(cl_loss_list),
                         'Round': epoch + 1
                     })
-            if (epoch+1) % args.print_every == 0:
-                    # Save checkpoint
-                    if args.iid:
-                        filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
-                    else:
-                        filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                # Save checkpoint
+                if args.iid:
+                    filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
+                else:
+                    filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
 
-                    checkpoint = {
-                        'epoch': epoch + 1,
-                        'model_state_dict': global_model.state_dict(),
-                        'loss': loss,
-                        'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
-                        'accuracy': acc,
-                        'train_accuracy': np.mean(cl_acc_list) * 100,
-                        'train_loss': np.mean(cl_loss_list),
-                    }
-                    save_checkpoint(checkpoint, filename=filename)
+                checkpoint = {
+                    'epoch': epoch + 1,
+                    'model_state_dict': global_model.state_dict(),
+                    'loss': loss,
+                    'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
+                    'accuracy': acc,
+                    'train_accuracy': np.mean(cl_acc_list) * 100,
+                    'train_loss': np.mean(cl_loss_list),
+                }
+                save_checkpoint(checkpoint, filename=filename)
 
-                    # Remove the previous checkpoint unless it's a multiple of the backup parameter
-                    if (epoch + 1) > args.print_every:
-                        if (epoch + 1 -10) % args.backup != 0:
-                            prev_epoch = epoch + 1 - args.print_every
+                # Remove the previous checkpoint unless it's a multiple of the backup parameter
+                if (epoch + 1) > args.print_every:
+                    if (epoch + 1 -10) % args.backup != 0:
+                        prev_epoch = epoch + 1 - args.print_every
 
-                            if args.iid:
-                                prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
-                            else:
-                                prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
-                            if os.path.exists(prev_filename):
-                                os.remove(prev_filename)
+                        if args.iid:
+                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                        else:
+                            prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                        if os.path.exists(prev_filename):
+                            os.remove(prev_filename)
     # Plot the frequency of client selection
     plt.figure(figsize=(10, 6))
 

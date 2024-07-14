@@ -30,6 +30,7 @@ do
         --epochs 2000 \
         --checkpoint_path $checkpoint_path \
         --data_dir $data_dir \
+        --lr 1 \
         --local_ep $j \
         --participation 1 \
         --logfile $logfile \
