@@ -5,7 +5,7 @@ wandb_username="$2"  # Second argument is the Wandb username
 
 # Set other variables as needed
 python_script="/content/Federated-Learning-Group_0/src/federated.py"
-data_dir="/content/drive/MyDrive/MLDL/shakespeare/data"
+data_dir="/content/drive/MyDrive/MLDL/shakespeare/data/iid"
 checkpoint_path="/content/drive/MyDrive/MLDL/shakespeare/checkpoints"
 logfile_base="/content/drive/MyDrive/MLDL/shakespeare/logs/federated_shakespeare_100_iid_2000_skewed"
 metrics_dir="/content/drive/MyDrive/MLDL/shakespeare/metrics"

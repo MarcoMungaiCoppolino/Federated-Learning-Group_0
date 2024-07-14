@@ -4,6 +4,10 @@ import numpy as np
 import os
 from collections import defaultdict
 
+
+ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
+NUM_LETTERS = len(ALL_LETTERS)
+
 def batch_data(data, batch_size, seed):
     '''
     Shuffles and divides the data into batches.

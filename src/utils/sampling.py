@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 from collections import Counter
 from utils.nlp_utils import *
+from utils.models import *
 
 class Client:
     def __init__(self, args, client_id, train_dataset, test_dataset, train_indices, val_indices, test_indices):
@@ -158,57 +159,10 @@ class ShakespeareClient:
         self.client_id = client_id
         self.train_dataset = train_subset
         self.test_dataset = test_subset
-        self.train_indices = list(range(len(train_subset)))
-        self.test_indices = list(range(len(test_subset)))
         self.batch_size = args.local_bs
         self.args = args
         self.train_dataloader = self.create_dataloader('train')
         self.test_dataloader = self.create_dataloader('test')
-    def get_class_distribution(self, indices, dataset):
-        targets = [dataset.targets[idx] for idx in indices]
-        return dict(Counter(targets))
-
-    def get_distributions(self):
-        train_dist = self.get_class_distribution(self.train_indices, self.train_dataset)
-        test_dist = self.get_class_distribution(self.test_indices, self.test_dataset)
-
-        return {
-            'train': train_dist,
-            'test': test_dist
-        }
-    def print_class_distribution(self):
-        def get_class_distribution(indices, dataset):
-            targets = [dataset.targets[idx] for idx in indices]
-            return dict(Counter(targets))
-
-        train_dist = get_class_distribution(self.train_indices, self.train_dataset)
-        test_dist = get_class_distribution(self.test_indices, self.test_dataset)
-
-        print(f"Client {self.client_id} class distribution:")
-        print(f"  Train: {train_dist}")
-        print(f"  Test: {test_dist}")
-        
-    def print_class_distribution(self):
-        def get_class_distribution(indices, dataset):
-            targets = [dataset.targets[idx] for idx in indices]
-            return dict(Counter(targets))
-
-        train_dist = get_class_distribution(self.train_indices, self.train_dataset)
-        test_dist = get_class_distribution(self.test_indices, self.test_dataset)
-
-        print(f"Client {self.client_id} class distribution:")
-        print(f"  Train: {train_dist}")
-        print(f"  Test: {test_dist}")
-
-    def check_indices(self):
-        def has_duplicates(lst):
-            return len(lst) != len(set(lst))
-
-        if has_duplicates(self.train_indices):
-            raise ValueError("Duplicate entries found in train_indices")
-        if has_duplicates(self.test_indices):
-            raise ValueError("Duplicate entries found in test_indices")
-
     def create_dataloader(self, loader_type='train'):
         '''
         Creates a DataLoader for the client's dataset.
@@ -233,21 +187,39 @@ class ShakespeareClient:
         Returns:
         nn.Module: The trained model.
         '''
+
+        # self.train_dataloader = self.create_dataloader('train')  # Recreate dataloader to shuffle data
+
+        # model.train()
+        # step_count = 0  # Initialize step counter
+        # while step_count < args.local_ep:  # Loop until local steps are reached
+        #     for inputs, labels in self.train_dataloader:
+        #         if args.device == 'cuda':
+        #             inputs, labels = inputs.cuda(), labels.cuda()
+        #         optimizer.zero_grad()
+        #         outputs = model(inputs)
+        #         loss = criterion(outputs, labels)
+        #         loss.backward()
+        #         optimizer.step()
+        #         step_count += 1
+        #         if step_count >= args.local_ep:  # Exit if local steps are reached
+        #             break
+        # return model
         model.train()
         step_count = 0
-        while step_count < local_step:
+        while step_count < self.args.local_ep:
             for inputs, labels in self.train_dataloader:
-                labels = labels.squeeze(1)
+                labels = labels.squeeze()
                 if self.args.device == 'cuda':
                     inputs, labels = inputs.cuda(), labels.cuda()  # Move data to CUDA
                 optimizer.zero_grad()
-                hidden = model.init_hidden(inputs.size(0))  # Initialize hidden state for current batch size
+                hidden = init_hidden(batch_size=inputs.size(0))  # Initialize hidden state for current batch size
                 outputs, hidden = model(inputs, hidden)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
                 step_count += 1
-                if step_count >= local_step:
+                if step_count >= self.args.local_ep:
                     break
         return model
 
@@ -266,10 +238,10 @@ class ShakespeareClient:
         correct, total, test_loss = 0.0, 0.0, 0.0
         with torch.no_grad():
             for inputs, labels in self.test_dataloader:
-                labels = labels.squeeze(1)
+                labels = labels.squeeze()
                 if self.args.device == 'cuda':
                     inputs, labels = inputs.cuda(), labels.cuda()
-                hidden = model.init_hidden(inputs.size(0))
+                hidden = init_hidden(batch_size=inputs.size(0))
                 outputs, hidden = model(inputs, hidden)
                 loss = criterion(outputs, labels)
                 test_loss += loss.item()
@@ -295,7 +267,7 @@ class ShakespeareObjectCrop:
         '''
         self.dataset = 'shakespeare'
         self.name = dataset_prefix
-        users, groups, train_data, test_data = read_data(data_path + 'train/', data_path + 'test/')
+        users, groups, train_data, test_data = read_data(data_path + '/train/', data_path + '/test/')
         self.users = users
         self.n_client = len(users)
         self.user_idx = np.asarray(list(range(self.n_client)))
@@ -374,7 +346,7 @@ class ShakespeareObjectCrop_noniid:
         '''
         self.dataset = 'shakespeare'
         self.name = dataset_prefix
-        users, groups, train_data, test_data = read_data(data_path + 'train/', data_path + 'test/')
+        users, groups, train_data, test_data = read_data(data_path + '/train/', data_path + '/test/')
         self.users = users
         tst_data_count_per_clnt = (crop_amount // tst_ratio)
 

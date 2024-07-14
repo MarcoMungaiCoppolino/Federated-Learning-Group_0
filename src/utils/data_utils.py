@@ -46,12 +46,12 @@ def get_dataset(args):
             name = 'shakepeare_noniid'
             number_of_clients=args.num_users
             data_obj = ShakespeareObjectCrop_noniid(storage_path,name,number_of_clients)
-        for (client_id, client_x,client_y, test_x, test_y) in enumerate(zip(data_obj.clnt_x,data_obj.clnt_y,data_obj.tst_x,data_obj.tst_y)):
+        for client_id, (client_x,client_y, test_x, test_y) in enumerate(zip(data_obj.clnt_x,data_obj.clnt_y,data_obj.tst_x,data_obj.tst_y)):
             #create customDataset for storing client data
             client_dataset = ShakespeareDataset(client_x, client_y)
             client_test_dataset = ShakespeareDataset(test_x, test_y)
             #create client giving as input the local dataset(no indices needed)
-            client = ShakespeareClient(args, client_id=client_id, subset=client_dataset, test_subset=client_test_dataset)
+            client = ShakespeareClient(args, client_id=client_id, train_subset=client_dataset, test_subset=client_test_dataset)
             clients.append(client)
         train_dataset = ShakespeareDataset(data_obj.clnt_x, data_obj.clnt_y)
         test_dataset = ShakespeareDataset(data_obj.tst_x, data_obj.tst_y)

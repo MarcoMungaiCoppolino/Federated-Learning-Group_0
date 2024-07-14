@@ -20,39 +20,35 @@ fi
 # Loop over the combinations of j and nc
 for j in 4 8 16
 do
-    for nc in 1 5 10 50
-    do
-        name="federated_shakespeare_100_noniid_uniform_j=${j}_nc=${nc}"
-        logfile="${logfile_base}_j=${j}_nc=${nc}.log"
-        
-        # Base command
-        CMD="python3 $python_script \
-            --dataset shakespeare \
-            --model lstm \
-            --epochs 2000 \
-            --checkpoint_path $checkpoint_path \
-            --data_dir $data_dir \
-            --local_ep $j \
-            --Nc $nc \
-            --participation 1 \
-            --logfile $logfile \
-            --metrics_dir $metrics_dir"
-        
-        # Add GPU parameter if GPU is available
-        if [ -n "$gpu_arg" ]; then
-            CMD="$CMD $gpu_arg"
-        fi
+    name="federated_shakespeare_100_noniid_uniform_j=${j}_nc=${nc}"
+    logfile="${logfile_base}_j=${j}_nc=${nc}.log"
+    
+    # Base command
+    CMD="python3 $python_script \
+        --dataset shakespeare \
+        --model lstm \
+        --epochs 2000 \
+        --checkpoint_path $checkpoint_path \
+        --data_dir $data_dir \
+        --local_ep $j \
+        --participation 1 \
+        --logfile $logfile \
+        --metrics_dir $metrics_dir"
+    
+    # Add GPU parameter if GPU is available
+    if [ -n "$gpu_arg" ]; then
+        CMD="$CMD $gpu_arg"
+    fi
 
-        # Add wandb parameters if they are provided
-        if [ -n "$wandb_key" ] && [ -n "$wandb_username" ]; then
-            CMD="$CMD --wandb_key $wandb_key \
-                --wandb_username $wandb_username \
-                --wandb_project Federated_Learning \
-                --wandb_run_name $name"
-        fi
+    # Add wandb parameters if they are provided
+    if [ -n "$wandb_key" ] && [ -n "$wandb_username" ]; then
+        CMD="$CMD --wandb_key $wandb_key \
+            --wandb_username $wandb_username \
+            --wandb_project Federated_Learning \
+            --wandb_run_name $name"
+    fi
 
-        # Execute the command
-        echo "Executing: $CMD"
-        eval $CMD
-    done
+    # Execute the command
+    echo "Executing: $CMD"
+    eval $CMD
 done

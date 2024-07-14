@@ -80,10 +80,11 @@ def shakespeare_inference(model, dataloader, criterion, args):
     test_loss = 0
     with torch.no_grad():
         for _, (inputs, labels) in enumerate(dataloader):
-            labels = labels.squeeze(1)
+            labels = labels.squeeze()
             if args.device == 'cuda':
-                nputs, labels = inputs.cuda(), labels.cuda()
-            hidden = model.init_hidden(inputs.size(0))
+                inputs, labels = inputs.cuda(), labels.cuda()
+            print(inputs.size(0))
+            hidden = init_hidden(batch_size=inputs.size(0))
             outputs,_ = model(inputs,hidden)
             loss = criterion(outputs, labels)
             test_loss += loss.item()
@@ -93,6 +94,15 @@ def shakespeare_inference(model, dataloader, criterion, args):
     test_loss = test_loss / len(dataloader)
     accuracy = correct / total
     return accuracy, test_loss
+
+
+def init_hidden(num_layers = 2, hidden_size = 256, batch_size=64):
+        if torch.cuda.is_available():
+            return (torch.zeros(num_layers, batch_size, hidden_size).cuda(),
+                    torch.zeros(num_layers, batch_size, hidden_size).cuda())
+        return (torch.zeros(num_layers, batch_size, hidden_size),
+                torch.zeros(num_layers, batch_size, hidden_size))
+
 
 def inference(model, test_set, criterion, args):
     model.eval()
@@ -114,4 +124,4 @@ def inference(model, test_set, criterion, args):
     accuracy = correct / total
     return accuracy, test_loss
 
-__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'eval_pfedhn','shakespeare_inference']
+__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'eval_pfedhn','shakespeare_inference', 'init_hidden']

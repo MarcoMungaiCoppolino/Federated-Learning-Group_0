@@ -111,7 +111,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                    
                     cl_acc_list, cl_loss_list = [], []
                     
-                    cl_acc, cl_loss = cl.inference(global_model, criterion, args)
+                    cl_acc, cl_loss = cl.inference(global_model, criterion, args) if args.dataset == 'cifar' else cl.inference(global_model, criterion)
                     if args.dataset == 'cifar':
                         cl_val_acc_list, cl_val_loss_list = [], []
                         cl_val_acc, cl_val_loss = cl.inference(global_model, criterion, args, loader_type='val')

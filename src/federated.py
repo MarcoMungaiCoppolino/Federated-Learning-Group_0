@@ -27,7 +27,8 @@ if __name__ == '__main__':
     else:
         global_model = CharLSTM().to(device)
     train_set, test_set, clients = get_dataset(args)
-
+    logger.info(test_set)
+    logger.info(train_set)
     logger.info("######################")
     logger.info("### Configuration ####")
     logger.info("######################")
@@ -57,37 +58,37 @@ if __name__ == '__main__':
     if args.gpu is not None:
         logger.debug('Using only these GPUs: {}'.format(args.gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    
-    clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': [], 'new_id': [], 'train_indices': [], 'val_indices': [], 'test_indices': []}
-    new_indices = list(range(100))
-    random.shuffle(new_indices)
-    for client in clients:
-        distributions = client.get_distributions()
-        clients_classes['client_id'].append(client.client_id)
-        clients_classes['train'].append(distributions['train'])
-        clients_classes['test'].append(distributions['test'])
-        clients_classes['new_id'].append(new_indices[client.client_id])
-        clients_classes['train_indices'].append(client.train_indices)
-        clients_classes['test_indices'].append(client.test_indices)
-        if args.dataset == 'cifar':
+    if args.dataset == 'cifar':
+        clients_classes = {'client_id': [], 'train': [], 'val': [], 'test': [], 'new_id': [], 'train_indices': [], 'val_indices': [], 'test_indices': []}
+        new_indices = list(range(100))
+        random.shuffle(new_indices)
+        for client in clients:
+            distributions = client.get_distributions()
+            clients_classes['client_id'].append(client.client_id)
+            clients_classes['train'].append(distributions['train'])
+            clients_classes['test'].append(distributions['test'])
+            clients_classes['train_indices'].append(client.train_indices)
+            clients_classes['test_indices'].append(client.test_indices)
             clients_classes['val'].append(distributions['val'])
             clients_classes['val_indices'].append(client.val_indices)
-        
-        
-    clients_classes_df = pd.DataFrame(clients_classes)
-    if args.iid:
-        if args.participation:
-            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}.pkl"
-        else:
-            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}.pkl"
-    else:
-        if args.participation:
-            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pkl"
-        else:
-            pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
+            clients_classes['new_id'].append(new_indices[client.client_id])
 
-    clients_classes_df.to_pickle(pickle_file)
-    logger.info(f"Saved clients classes distribution to {pickle_file}")
+            
+            
+        clients_classes_df = pd.DataFrame(clients_classes)
+        if args.iid:
+            if args.participation:
+                pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}.pkl"
+            else:
+                pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}.pkl"
+        else:
+            if args.participation:
+                pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}.pkl"
+            else:
+                pickle_file = f"{args.metrics_dir}/clients_classes_dist_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_{args.Nc}_{args.local_ep}.pkl"
+
+        clients_classes_df.to_pickle(pickle_file)
+        logger.info(f"Saved clients classes distribution to {pickle_file}")
         # for client in clients:
         #   client.print_class_distribution()
     if args.n_nodes == args.num_users:

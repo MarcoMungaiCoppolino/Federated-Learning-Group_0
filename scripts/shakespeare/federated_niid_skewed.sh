@@ -23,43 +23,39 @@ gammas=(0.1 0.5 0.7)
 # Loop over the combinations of j, nc, and gamma
 for j in 4 8 16
 do
-    for nc in 1 5 10 50
+    for gamma in "${gammas[@]}"
     do
-        for gamma in "${gammas[@]}"
-        do
-            name="federated_shakespeare_100_noniid_skewed_j=${j}_nc=${nc}_gamma=${gamma}"
-            logfile="${logfile_base}_j=${j}_nc=${nc}_gamma=${gamma}.log"
-            
-            # Base command
-            CMD="python3 $python_script \
-                --dataset shakespeare \
-                --model lstm \
-                --checkpoint_path $checkpoint_path \
-                --epochs 2000 \
-                --data_dir $data_dir \
-                --local_ep $j \
-                --Nc $nc \
-                --participation 1 \
-                --logfile $logfile \
-                --metrics_dir $metrics_dir \
-                --gamma $gamma"
-            
-            # Add GPU parameter if GPU is available
-            if [ -n "$gpu_arg" ]; then
-                CMD="$CMD $gpu_arg"
-            fi
+        name="federated_shakespeare_100_noniid_skewed_j=${j}_nc=${nc}_gamma=${gamma}"
+        logfile="${logfile_base}_j=${j}_nc=${nc}_gamma=${gamma}.log"
+        
+        # Base command
+        CMD="python3 $python_script \
+            --dataset shakespeare \
+            --model lstm \
+            --checkpoint_path $checkpoint_path \
+            --epochs 2000 \
+            --data_dir $data_dir \
+            --local_ep $j \
+            --participation 1 \
+            --logfile $logfile \
+            --metrics_dir $metrics_dir \
+            --gamma $gamma"
+        
+        # Add GPU parameter if GPU is available
+        if [ -n "$gpu_arg" ]; then
+            CMD="$CMD $gpu_arg"
+        fi
 
-            # Add wandb parameters if they are provided
-            if [ -n "$wandb_key" ] && [ -n "$wandb_username" ]; then
-                CMD="$CMD --wandb_key $wandb_key \
-                    --wandb_username $wandb_username \
-                    --wandb_project Federated_Learning \
-                    --wandb_run_name $name"
-            fi
+        # Add wandb parameters if they are provided
+        if [ -n "$wandb_key" ] && [ -n "$wandb_username" ]; then
+            CMD="$CMD --wandb_key $wandb_key \
+                --wandb_username $wandb_username \
+                --wandb_project Federated_Learning \
+                --wandb_run_name $name"
+        fi
 
-            # Execute the command
-            echo "Executing: $CMD"
-            eval $CMD
-        done
+        # Execute the command
+        echo "Executing: $CMD"
+        eval $CMD
     done
 done
