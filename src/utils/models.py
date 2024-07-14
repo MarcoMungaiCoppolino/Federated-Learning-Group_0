@@ -39,15 +39,14 @@ def eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type):
         return results
 
     curr_results = evaluate(nodes, num_nodes, hnet, net, criterion, device, loader_type=loader_type)
-    avg_of_all_nodes = np.mean([val['accuracy'] for val in curr_results.values()])
     total_correct = sum([val['correct'] for val in curr_results.values()])
     total_samples = sum([val['total'] for val in curr_results.values()])
+    
     avg_loss = np.mean([val['loss'] for val in curr_results.values()])
-    avg_acc = total_correct / total_samples
+    avg_acc = np.mean([val['accuracy'] for val in curr_results.values()])
+    acc = total_correct / total_samples
 
-    all_acc = [val['correct'] / val['total'] for val in curr_results.values()]
-
-    return curr_results, avg_loss, avg_acc, all_acc, avg_of_all_nodes
+    return curr_results, avg_loss, avg_acc, acc
 
 
 
