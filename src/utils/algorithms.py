@@ -227,6 +227,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
     clients_distribs = {client.client_id: 0 for client in clients}
     embed_dim = args.embed_dim
     num_nodes = args.n_nodes
+    
     if embed_dim == -1:
         embed_dim = int(1 + num_nodes / 4)
 
@@ -255,17 +256,10 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
     ################
     # init metrics #
     ################
-    # Ahmad modify the accuracies and the metrics so we have something similar to what was done with FedAvg
-    last_eval = -1
-    best_step = -1
-    best_acc = -1
-    test_best_based_on_step, test_best_min_based_on_step = -1, -1
-    test_best_max_based_on_step, test_best_std_based_on_step = -1, -1
     results = defaultdict(list)
 
     dirichlet_probs = np.random.dirichlet([args.gamma] * num_nodes)
 
-    # Ahmad here instead of the tqdm we used in FedAvg the hypernetwork had a trange, can u convert this to something similar to what we did in FedAvg?
     step_iter = trange(args.epochs)
     for step in step_iter:
         hnet.train()
@@ -276,7 +270,9 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
         else:
             # Skewed participation
             node_id = np.random.choice(range(num_nodes), p=dirichlet_probs)
+            
         clients_distribs[node_id] = 1
+        
         # produce & load local network weights
         weights = hnet(torch.tensor([node_id], dtype=torch.long).to(device))
         net.load_state_dict(weights)
@@ -288,17 +284,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
         # storing theta_i for later calculating delta theta
         inner_state = OrderedDict({k: tensor.data for k, tensor in weights.items()})
-
-        # NOTE: evaluation on sent model
-        # this might be not necessary its just a quick evaluation they do at the start
-        # with torch.no_grad():
-        #     net.eval()
-        #     batch = next(iter(nodes[node_id].test_dataloader))
-        #     img, label = tuple(t.to(device) for t in batch)
-        #     pred = net(img)
-        #     prvs_loss = criterion(pred, label)
-        #     prvs_acc = pred.argmax(1).eq(label).sum().item() / len(label)
-
+        
         # inner updates -> obtaining theta_tilda
         inner_steps = args.local_ep * 10
         for i in range(inner_steps):
@@ -317,7 +303,8 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
             inner_optim.step()
 
-
+        optimizer.zero_grad()
+        
         final_state = net.state_dict()
 
         # calculating delta theta
@@ -328,53 +315,37 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
             list(weights.values()), hnet.parameters(), grad_outputs=list(delta_theta.values())
         )
 
-        optimizer.zero_grad()
-
         # update hnet weights
         for p, g in zip(hnet.parameters(), hnet_grads):
             p.grad = g
         torch.nn.utils.clip_grad_norm_(hnet.parameters(), 50)
         optimizer.step()
 
-        # logger.info(f"\n\nStep: {step+1}, Node ID: {node_id}, Loss: {prvs_loss:.4f},  Acc: {prvs_acc:.4f}")
         if (step +1) % args.print_every == 0:
             filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{step+1}.pth.tar"
           
             last_eval = step
-            step_results, avg_loss, avg_acc, all_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
+            step_results, test_avg_loss, test_avg_acc, test_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
 
-            logger.info(f"\nStep: {step+1}, AVG Loss: {avg_loss:.4f},  AVG Acc: {avg_acc:.4f}")
-            wandb_logger.log({
-                'Step': step + 1,
-                'Test Avg Loss': avg_loss,
-                'Test Avg Acc': avg_acc,
-            })
-            results['test_avg_loss'].append(avg_loss)
-            results['test_avg_acc'].append(avg_acc)
+            logger.info(f"\nStep: {step+1}, AVG Test Loss: {test_avg_loss:.4f},  AVG Test Acc: {test_avg_acc:.4f}, Test Acc: {test_acc:.4f}")
+                        
+            results['test_avg_loss'].append(test_avg_loss)
+            results['test_avg_acc'].append(test_avg_acc)
+            results['test_acc'].append(test_acc)
 
-            _, val_avg_loss, val_avg_acc, _, avg_of_all_nodes = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
-            if best_acc < val_avg_acc:
-                best_acc = val_avg_acc
-                best_step = step
-                test_best_based_on_step = avg_acc
-                test_best_min_based_on_step = np.min(all_acc)
-                test_best_max_based_on_step = np.max(all_acc)
-                test_best_std_based_on_step = np.std(all_acc)
-
+            _, val_avg_loss, val_avg_acc, val_acc  = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
             results['val_avg_loss'].append(val_avg_loss)
             results['val_avg_acc'].append(val_avg_acc)
-            results['best_step'].append(best_step)
-            results['best_val_acc'].append(best_acc)
-            results['best_test_acc_based_on_val_beststep'].append(test_best_based_on_step)
-            results['test_best_min_based_on_step'].append(test_best_min_based_on_step)
-            results['test_best_max_based_on_step'].append(test_best_max_based_on_step)
-            results['test_best_std_based_on_step'].append(test_best_std_based_on_step)
-            results['avg_of_all_nodes'].append(avg_of_all_nodes)
+            results['val_acc'].append(val_acc)
 
             wandb_logger.log({
-                'Test Loss': loss,
-                'Test Accuracy': results['avg_of_all_nodes'][-1] * 100,
-                'Round': step + 1
+                'Step': step + 1,
+                'Test Avg Loss': test_avg_loss,
+                'Test Avg Acc': test_avg_acc,
+                'Test Acc': test_acc,
+                'Val Avg Loss': val_avg_loss,
+                'Val Avg Acc': val_avg_acc,
+                'Val Acc': val_acc
             })
             for key in results:
                 logger.info(f"{key}: {results[key][-1]}")
@@ -383,13 +354,13 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 'epoch': step + 1,
                 'model_state_dict': global_model.state_dict(),
                 'hn_state_dict': hnet.state_dict(),
-                'test_loss': loss,
                 'user_input': (args.iid, args.participation, args.Nc, args.local_ep),
-                'test_accuracy': results['avg_of_all_nodes'][-1],
+                'test_accuracy': results['test_acc'][-1],
                 'test_avg_loss': results['test_avg_loss'][-1],
                 'test_avg_acc': results['test_avg_acc'][-1],
+                'val_accuracy': results['val_acc']
                 'val_avg_loss': results['val_avg_loss'][-1],
-                'val_avg_acc': results['val_avg_acc'][-1],
+                'val_avg_acc': results['val_avg_acc'][-1]
             }
             save_checkpoint(checkpoint, filename=filename)
 
@@ -401,33 +372,23 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
                     
                     if os.path.exists(prev_filename):
                         os.remove(prev_filename)
-            # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
-            
-            metrics.loc[len(metrics)] = [step + 1, results['avg_of_all_nodes'][-1], loss, results['test_avg_acc'][-1], results['test_avg_loss'][-1], results['val_avg_acc'][-1], results['val_avg_loss'][-1]]
+          
+            metrics.loc[len(metrics)] = [step + 1, results['test_acc'][-1], results['test_avg_loss'][-1], results['test_avg_acc'][-1], results['val_acc'][-1], results['val_avg_loss'][-1], results['val_avg_acc'][-1]]
     if step != last_eval:
-        _, val_avg_loss, val_avg_acc, _ = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
-        step_results, avg_loss, avg_acc, all_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
-        logger.info(f"\nStep: {step + 1}, AVG Loss: {avg_loss:.4f},  AVG Acc: {avg_acc:.4f}")
+        _, val_avg_loss, val_avg_acc, val_acc  = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="val")
+
+        results['test_avg_loss'].append(test_avg_loss)
+        results['test_avg_acc'].append(test_avg_acc)
+        results['test_acc'].append(test_acc)
 
         results['test_avg_loss'].append(avg_loss)
         results['test_avg_acc'].append(avg_acc)
-
-        if best_acc < val_avg_acc:
-            best_acc = val_avg_acc
-            best_step = step
-            test_best_based_on_step = avg_acc
-            test_best_min_based_on_step = np.min(all_acc)
-            test_best_max_based_on_step = np.max(all_acc)
-            test_best_std_based_on_step = np.std(all_acc)
-
+        step_results, test_avg_loss, test_avg_acc, test_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
+        logger.info(f"\nStep: {step+1}, AVG Test Loss: {test_avg_loss:.4f},  AVG Test Acc: {test_avg_acc:.4f}, Test Acc: {test_acc:.4f}")
         results['val_avg_loss'].append(val_avg_loss)
         results['val_avg_acc'].append(val_avg_acc)
-        results['best_step'].append(best_step)
-        results['best_val_acc'].append(best_acc)
-        results['best_test_acc_based_on_val_beststep'].append(test_best_based_on_step)
-        results['test_best_min_based_on_step'].append(test_best_min_based_on_step)
-        results['test_best_max_based_on_step'].append(test_best_max_based_on_step)
-        results['test_best_std_based_on_step'].append(test_best_std_based_on_step)
+        results['val_acc'].append(val_acc)
+         
     # Plot the frequency of client selection
     plt.figure(figsize=(10, 6))
 
@@ -440,7 +401,6 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
     plt.ylabel('Relative frequency')
     if args.participation:  
         plt.title(f'Clients distribution (random selection)')
-
     else:
         plt.title(f'Clients distribution (gamma={args.gamma})')
         
