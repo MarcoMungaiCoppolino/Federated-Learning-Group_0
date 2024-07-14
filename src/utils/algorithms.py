@@ -228,12 +228,11 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
     clients_distribs = {client.client_id: 0 for client in clients}
     embed_dim = args.embed_dim
     num_nodes = args.n_nodes
-    num_users = args.num_users
     if embed_dim == -1:
-        embed_dim = int(1 + num_users / 4)
+        embed_dim = int(1 + num_nodes / 4)
 
     # Ahmad add a check if there is a saving checkpoint if it there is then load the state dict on the global_model and the hypernetwork
-    hnet = CNNHyper(num_users, embed_dim).to(device)
+    hnet = CNNHyper(num_nodes, embed_dim).to(device)
     net = global_model
 
     ##################
