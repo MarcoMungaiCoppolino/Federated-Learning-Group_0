@@ -238,7 +238,7 @@ class ShakespeareClient:
         correct, total, test_loss = 0.0, 0.0, 0.0
         with torch.no_grad():
             for inputs, labels in self.test_dataloader:
-                labels = labels.squeeze()
+                labels = labels.squeeze(1)
                 if self.args.device == 'cuda':
                     inputs, labels = inputs.cuda(), labels.cuda()
                 hidden = init_hidden(batch_size=inputs.size(0))

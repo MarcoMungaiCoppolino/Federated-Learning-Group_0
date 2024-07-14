@@ -83,7 +83,6 @@ def shakespeare_inference(model, dataloader, criterion, args):
             labels = labels.squeeze()
             if args.device == 'cuda':
                 inputs, labels = inputs.cuda(), labels.cuda()
-            print(inputs.size(0))
             hidden = init_hidden(batch_size=inputs.size(0))
             outputs,_ = model(inputs,hidden)
             loss = criterion(outputs, labels)
