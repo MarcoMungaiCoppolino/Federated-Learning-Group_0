@@ -29,6 +29,7 @@ do
         --algorithm pfedhn \
         --dataset cifar \
         --epochs 1900 \
+        --n_nodes 90 \
         --checkpoint_path $checkpoint_path \
         --data_dir $data_dir \
         --local_ep $j \
