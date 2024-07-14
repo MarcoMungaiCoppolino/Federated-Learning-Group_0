@@ -163,7 +163,8 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 save_checkpoint(checkpoint, filename=filename)
 
                 # Remove the previous checkpoint unless it's a multiple of the backup parameter
-                if (epoch + 1) > args.print_every:
+                prev_epoch = epoch + 1 - args.print_every
+                if (epoch + 1) > args.print_every and (args.prev_epoch != 1900 or args.prev_epoch != 2000):
                     if (epoch + 1 -10) % args.backup != 0:
                         prev_epoch = epoch + 1 - args.print_every
 
