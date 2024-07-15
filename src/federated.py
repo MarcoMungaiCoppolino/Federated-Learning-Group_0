@@ -23,7 +23,10 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss().to(device)
 
     if args.dataset == 'cifar':
-        global_model = CIFARLeNet().to(device)
+        if args.algorithm == 'fedavg':
+            global_model = CIFARLeNet().to(device)
+        else:
+            global_model = CIFARLeNet2().to(device)
     else:
         global_model = CharLSTM().to(device)
     train_set, test_set, clients = get_dataset(args)

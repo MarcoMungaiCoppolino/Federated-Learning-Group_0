@@ -3,6 +3,69 @@ from torch import nn
 from torch.nn.utils import spectral_norm
 from collections import OrderedDict
 
+
+
+class CIFARLeNet2(nn.Module):
+    """
+    A neural network model inspired by LeNet5, designed for CIFAR-100 dataset.
+
+    Attributes:
+    ----------
+    flatten : nn.Module
+        A layer to flatten the input tensor.
+    conv1 : nn.Module
+        First convolutional layer with 3 input channels and 64 output channels.
+    conv2 : nn.Module
+        Second convolutional layer with 64 input channels and 64 output channels.
+    pool : nn.Module
+        Max pooling layer with kernel size of 2.
+    fc1 : nn.Module
+        Fully connected layer with input size 64*5*5 and output size 384.
+    fc2 : nn.Module
+        Fully connected layer with input size 384 and output size 192.
+    fc3 : nn.Module
+        Fully connected layer with input size 192 and output size 100.
+    """
+
+    def __init__(self):
+        """
+        Initialize the CIFARLeNet model with its layers.
+        """
+        super(CIFARLeNet2, self).__init__()
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=5)
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=5)
+        self.pool = nn.MaxPool2d(2)
+        self.fc1 = nn.Linear(64 * 5 * 5, 384)
+        self.fc2 = nn.Linear(384, 192)
+        self.fc3 = nn.Linear(192, 100)
+    def forward(self, x):
+        """
+        Defines the forward pass of the model.
+
+        Parameters:
+        ----------
+        x : torch.Tensor
+            The input tensor.
+
+        Returns:
+        -------
+        torch.Tensor
+            The output tensor after applying all the layers.
+        """
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.pool(x)
+        x = x.view(-1, 64 * 5 * 5)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        # x = F.log_softmax(x, dim=1)
+        return x
 class CIFARLeNet(nn.Module):
     """
     A neural network model inspired by LeNet5, designed for CIFAR-100 dataset.

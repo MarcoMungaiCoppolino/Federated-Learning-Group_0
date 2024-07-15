@@ -28,6 +28,7 @@ do
     CMD="python3 $python_script \
         --dataset cifar \
         --epochs 2000 \
+        --n_nodes 90 \
         --checkpoint_path $checkpoint_path \
         --data_dir $data_dir \
         --local_ep $j \

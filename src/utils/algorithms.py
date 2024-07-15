@@ -81,6 +81,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
     with tqdm(total=args.epochs, initial=start_epoch, desc="Training") as pbar:
         for epoch in range(start_epoch, args.epochs):
+            wandb_logger.log({'epoch': epoch + 1})
             logger.info(f'\n\n| Global Training Round : {epoch+1} |')
             global_weights = [param.clone().detach() for param in global_model.parameters()]
 
@@ -123,7 +124,6 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         cl_loss_list.append(cl_loss)
                 
                 acc, loss = inference(global_model, test_set, criterion, args) if args.dataset == 'cifar' else shakespeare_inference(global_model, test_dataloader, criterion, args)
-            # metrics = pd.DataFrame(columns=['Round', 'Test Accuracy', 'Test Loss', 'Avg Test Accuracy', 'Avg Test Loss', 'Avg Validation Accuracy', 'Avg Validation Loss'])
                 if args.dataset == 'cifar':
                     metrics.loc[len(metrics)] = [epoch+1, acc, loss, np.mean(cl_acc_list), np.mean(cl_loss_list), np.mean(cl_val_acc_list), np.mean(cl_val_loss_list)]
                 # else:
@@ -134,7 +134,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                     logger.info(f'Avg Train Loss: {np.mean(cl_loss_list)} Average Train Accuracy: {np.mean(cl_acc_list)}')
                     logger.info(f'Avg Validation Loss: {np.mean(cl_val_loss_list)} Average Validation Accuracy: {np.mean(cl_val_acc_list)}')
                     wandb_logger.log({
-                         'Avg Validation Accuracy': np.mean(cl_val_acc_list) * 100,
+                        'Avg Validation Accuracy': np.mean(cl_val_acc_list) * 100,
                         'Avg Validation Loss': np.mean(cl_val_loss_list),
                     })
                 wandb_logger.log({
@@ -143,7 +143,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                         # 'Test Avg Loss': test_avg_loss,
                         'Test Loss': loss,
                         'Test Accuracy': acc * 100,
-                        'Round': epoch + 1
+                        'step': epoch + 1
                     })
                 # Save checkpoint
                 if args.iid:
@@ -164,14 +164,17 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
                 # Remove the previous checkpoint unless it's a multiple of the backup parameter
                 prev_epoch = epoch + 1 - args.print_every
-                if (epoch + 1) > args.print_every and (prev_epoch != 1900 or prev_epoch != 2000):
-                    if (epoch + 1 -10) % args.backup != 0:
-                        prev_epoch = epoch + 1 - args.print_every
-
+                # Check if we need to delete a previous checkpoint
+                if (epoch + 1) > args.print_every and prev_epoch != 1900:
+                    # Check if the previous epoch is not a backup epoch
+                    if (prev_epoch) % args.backup != 0:
+                        # Construct the filename based on whether 'iid' is specified
                         if args.iid:
                             prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
                         else:
                             prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
+                        
+                        # Check if the file exists and delete it
                         if os.path.exists(prev_filename):
                             os.remove(prev_filename)
     # Plot the frequency of client selection
@@ -263,6 +266,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
 
     step_iter = trange(args.epochs)
     for step in step_iter:
+        wandb_logger.log({'epoch': step + 1})
         hnet.train()
 
         if args.participation:

@@ -58,6 +58,7 @@ def args_parser():
                         help='How often an old backup should be preserved')
     parser.add_argument('--checkpoint_path', type=str, default=".",
                         help='Saved models location')
+    parser.add_argument('--backup', type=int, default=1900)
     parser.add_argument('--print_every', type=int, default=10,
                         help='how often the train_accuracy is computed, and \
                         how often a new checkpoint is saved')
