@@ -359,7 +359,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 'test_accuracy': results['test_acc'][-1],
                 'test_avg_loss': results['test_avg_loss'][-1],
                 'test_avg_acc': results['test_avg_acc'][-1],
-                'val_accuracy': results['val_acc'],
+                'val_accuracy': results['val_acc'][-1],
                 'val_avg_loss': results['val_avg_loss'][-1],
                 'val_avg_acc': results['val_avg_acc'][-1]
             }
