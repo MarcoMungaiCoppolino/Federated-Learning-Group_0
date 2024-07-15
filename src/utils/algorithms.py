@@ -381,9 +381,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
         results['test_avg_loss'].append(test_avg_loss)
         results['test_avg_acc'].append(test_avg_acc)
         results['test_acc'].append(test_acc)
-
-        results['test_avg_loss'].append(avg_loss)
-        results['test_avg_acc'].append(avg_acc)
+        
         step_results, test_avg_loss, test_avg_acc, test_acc = eval_pfedhn(nodes, num_nodes, hnet, net, criterion, device, loader_type="test")
         logger.info(f"\nStep: {step+1}, AVG Test Loss: {test_avg_loss:.4f},  AVG Test Acc: {test_avg_acc:.4f}, Test Acc: {test_acc:.4f}")
         results['val_avg_loss'].append(val_avg_loss)
