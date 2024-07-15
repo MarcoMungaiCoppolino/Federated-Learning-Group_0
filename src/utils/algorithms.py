@@ -167,7 +167,7 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                 # Check if we need to delete a previous checkpoint
                 if (epoch + 1) > args.print_every and prev_epoch != 1900:
                     # Check if the previous epoch is not a backup epoch
-                    if (prev_epoch) % args.backup != 0:
+                    if ((epoch + 1 - 10) % args.backup != 0) and ((epoch + 1 - 10) % args.backup != 50) and ((epoch + 1 - 10) % args.backup != 80):
                         # Construct the filename based on whether 'iid' is specified
                         if args.iid:
                             prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
@@ -372,7 +372,7 @@ def pFedHN(global_model, clients, criterion, args, logger, metrics, wandb_logger
             # Remove the previous checkpoint unless it's a multiple of the backup parameter
             prev_epoch = step + 1 - args.print_every
             if (step + 1) > args.print_every and prev_epoch != 1900:
-                if (step + 1 -10) % args.backup != 0:
+                 if ((step + 1 - 10) % args.backup != 0) and ((step + 1 - 10) % args.backup != 50) and ((step + 1 - 10) % args.backup != 80):
                     prev_filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{prev_epoch}.pth.tar"
                     
                     if os.path.exists(prev_filename):
