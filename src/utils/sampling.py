@@ -42,7 +42,9 @@ class Client:
 
         dataset, indices = dataset_dict[dataset_type]
         subset = Subset(dataset, indices)
-        dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=True)
+
+        shuffle = dataset_type == "train"
+        dataloader = DataLoader(subset, batch_size=self.batch_size, shuffle=shuffle)
         return dataloader
     
     def print_class_distribution(self):
