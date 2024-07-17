@@ -21,7 +21,6 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
             checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_epoch_*.pth.tar"
         else:
             checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.gamma}_epoch_*.pth.tar"
-
     else:
         if args.participation:
             checkpoint_pattern = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_*.pth.tar"
