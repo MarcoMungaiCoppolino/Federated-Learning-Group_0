@@ -106,8 +106,22 @@ Here is a table detailing all the available command-line arguments and their des
 
 ## Project Structure
 
-- `main.py`: The main script for running federated learning experiments.
-- `requirements.txt`: A list of required libraries for setting up the environment.
-- `data/`: Contains datasets used in the training process.
-- `models/`: Contains model definitions (e.g., CNN, MLP).
-- `utils/`: Utility functions for data processing, logging, etc.
+- **`main_runner.ipynb`**: Jupyter notebook for running the main federated learning experiment.
+- **`requirements.txt`**: A list of required libraries for setting up the environment.
+- **`scripts/`**: Contains various scripts for different datasets and tasks.
+  - `README.md`: Documentation related to scripts.
+  - `cifar/`: Scripts and resources specific to the CIFAR dataset applying fedavg.
+  - `personalised/`: Scripts for personalized federated learning applying generalization on fedavg and pfedhn.
+  - `shakespeare/`: Scripts related to the Shakespeare dataset applying fedavg.
+- **`src/`**: Source code directory containing the core logic.
+  - `federated.py`: The main script for running federated learning experiments.
+  - `models/`: Contains model definitions (e.g., CNN, MLP).
+  - `utils/`: Utility functions for data processing, logging, and more.
+- **`notebooks/`**: Contains additional Jupyter notebooks for various experiments.
+  - `Centralized_baseline_CIFAR100.ipynb`: Baseline experiment on the CIFAR-100 dataset.
+  - `Centralized_baseline_Shakespeare.ipynb`: Baseline experiment on the Shakespeare dataset.
+  - `Knn_per.ipynb`: Notebook for k-Nearest Neighbors-PER experiments.
+  - `plots.ipynb`: Notebook for generating plots and visualizations.
+- **`LICENSE`**: Licensing information for the project.
+- **`README.md`**: Documentation for the project.
+
