@@ -65,9 +65,6 @@ def update_weights(model, weights):
     for param, weight in zip(model.parameters(), weights):
         param.data.copy_(weight)
 
-def initialize_hidden_state(num_layers, hidden_size, batch_size):
-    return (torch.zeros(num_layers, batch_size, hidden_size),
-            torch.zeros(num_layers, batch_size, hidden_size))
 
 def save_checkpoint(state, filename="checkpoint.pth.tar"):
     torch.save(state, filename)
@@ -123,4 +120,4 @@ def inference(model, test_set, criterion, args):
     accuracy = correct / total
     return accuracy, test_loss
 
-__all__ = ['initialize_hidden_state', 'update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'eval_pfedhn','shakespeare_inference', 'init_hidden']
+__all__ = ['update_weights', 'load_checkpoint','inference', 'save_checkpoint', 'eval_pfedhn','shakespeare_inference', 'init_hidden']

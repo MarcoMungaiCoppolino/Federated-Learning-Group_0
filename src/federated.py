@@ -26,7 +26,7 @@ if __name__ == '__main__':
         if args.algorithm == 'fedavg':
             global_model = CIFARLeNet().to(device)
         else:
-            global_model = CIFARLeNet2().to(device)
+            global_model = CIFARLeNet().to(device)
     else:
         global_model = CharLSTM().to(device)
     train_set, test_set, clients = get_dataset(args)

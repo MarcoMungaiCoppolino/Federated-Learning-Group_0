@@ -145,14 +145,14 @@ def fedAVG(global_model, clients, criterion, args, logger, metrics, wandb_logger
                     })
                 # Save checkpoint
                 if args.iid:
-                    if args.participation
+                    if args.participation:
                         filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
-                    else
+                    else:
                         filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.local_ep}_{args.gamma}_epoch_{epoch+1}.pth.tar"
                 else:
-                    if args.participation
+                    if args.participation:
                         filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_epoch_{epoch+1}.pth.tar"
-                    else
+                    else:
                         filename = f"{args.checkpoint_path}/checkpoint_{args.algorithm}_{args.iid}_{args.participation}_{args.Nc}_{args.local_ep}_{args.gamma}_epoch_{epoch+1}.pth.tar"
 
                 checkpoint = {

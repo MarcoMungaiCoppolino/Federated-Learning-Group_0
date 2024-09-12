@@ -1,73 +1,52 @@
-# Overview
+# PyTorch Neural Network Models
 
-This directory contains two PyTorch models: `CIFARLeNet` and `CharLSTM`. These models are implemented using the `torch.nn.Module` base class and are designed for different types of tasks.
+This repository contains several PyTorch neural network models for different tasks. Specifically, it includes implementations for:
 
-## CIFARLeNet
+- `CIFARLeNet`: A LeNet5-inspired model tailored for the CIFAR-100 dataset.
+- `CNNHyper`: A flexible convolutional neural network that learns the weights of its convolutional and fully connected layers.
+- `CharLSTM`: A character-level LSTM model designed for sequence prediction tasks.
 
-### Description
+## Models
 
-`CIFARLeNet` is a convolutional neural network model inspired by LeNet. It is specifically designed for image classification tasks using the CIFAR-100 dataset.
+### CIFARLeNet
 
-### Architecture
+A convolutional neural network inspired by LeNet5, adapted for the CIFAR-100 dataset.
 
-- **Layers**:
-  - `flatten`: Flattens the input tensor.
-  - `conv1`: First convolutional layer with 3 input channels and 64 output channels, using a kernel size of 5.
-  - `conv2`: Second convolutional layer with 64 input channels and 64 output channels, using a kernel size of 5.
-  - `pool`: Max pooling layer with a kernel size of 2.
-  - `fc1`: Fully connected layer with input size of 64 * 5 * 5 and output size of 384.
-  - `fc2`: Fully connected layer with input size of 384 and output size of 192.
-  - `fc3`: Fully connected layer with input size of 192 and output size of 100.
+#### Attributes
+- `conv1`: First convolutional layer with 3 input channels and 64 output channels.
+- `conv2`: Second convolutional layer with 64 input channels and 64 output channels.
+- `pool`: Max pooling layer with a kernel size of 2.
+- `fc1`: Fully connected layer with input size 64*5*5 and output size 384.
+- `fc2`: Fully connected layer with input size 384 and output size 192.
+- `fc3`: Fully connected layer with input size 192 and output size 100 (for CIFAR-100 classes).
 
-### Usage
+#### Methods
+- `forward(x: torch.Tensor) -> torch.Tensor`: Defines the forward pass of the model. Takes an input tensor and returns the output tensor after applying all the layers.
 
-To use the `CIFARLeNet` model for image classification tasks on CIFAR-100 dataset, follow these steps:
+### CNNHyper
 
-1. Initialize an instance of `CIFARLeNet`.
-2. Prepare the data in the appropriate format (e.g., normalize and batchify).
-3. Forward pass the input through the model to get predictions.
+A flexible convolutional neural network model that learns the weights for convolutional and fully connected layers.
 
-```python
-from cifar_lenet import CIFARLeNet
+#### Attributes
+- `in_channels`: Number of input channels for the convolutional layers (default is 3).
+- `out_dim`: Output dimension (number of classes for classification).
+- `n_kernels`: Number of kernels used in the convolutional layers.
+- `embeddings`: Embedding layer to map node indices to dense vectors.
+- `mlp`: Multi-layer perceptron (MLP) that processes the embeddings.
 
-# Example usage
-model = CIFARLeNet()
-# Prepare your CIFAR-100 dataset and DataLoader
-# Forward pass example
-outputs = model(inputs)
-```
+#### Methods
+- `forward(idx: torch.Tensor) -> OrderedDict`: Defines the forward pass of the model and returns the learned weights for the layers. Takes input indices for the embeddings and returns a dictionary containing the weights and biases for the convolutional and fully connected layers.
 
-## CharLSTM
+### CharLSTM
 
-### Description
+A character-level LSTM model for sequence prediction tasks.
 
-`CharLSTM` is a character-level LSTM model designed for sequence prediction tasks. It can be used for tasks such as text generation or character-level language modeling.
+#### Attributes
+- `hidden_size`: The number of features in the hidden state of the LSTM.
+- `num_layers`: The number of recurrent layers in the LSTM.
+- `embedding`: Embedding layer that maps character indices to dense vectors.
+- `lstm`: The LSTM layer that processes the embedded input.
+- `fc`: A fully connected layer that maps LSTM output to the output size.
 
-### Architecture
-
-- **Layers**:
-  - `embedding`: Embedding layer to convert input indices to dense vectors.
-  - `lstm`: LSTM layer for sequence processing, with specified embedding size, hidden size, and number of layers.
-  - `fc`: Fully connected layer to produce the final output.
-
-### Usage
-
-To use the `CharLSTM` model for sequence prediction tasks, follow these steps:
-
-1. Initialize an instance of `CharLSTM` with appropriate parameters.
-2. Prepare the input sequences and initial hidden state.
-3. Forward pass the input through the model to get predictions and updated hidden state.
-
-```python
-from char_lstm import CharLSTM
-
-# Example usage
-model = CharLSTM(input_size, embedding_size, hidden_size, num_layers, output_size)
-# Prepare your input sequences and initial hidden state
-# Forward pass example
-outputs, new_hidden = model(inputs, initial_hidden)
-```
-
----
-
-This `README.md` provides a high-level overview of each model's purpose, architecture, and usage instructions. Replace `cifar_lenet` and `char_lstm` with the appropriate filenames where your model implementations reside. Adjust the usage examples to fit your specific use case and dataset handling procedures.
+#### Methods
+- `forward(x: torch.Tensor, hidden: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]`: Defines the forward pass of the model. Takes an input tensor containing character indices and the hidden state, and returns the output tensor and the updated hidden state.
