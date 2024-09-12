@@ -51,7 +51,7 @@ This project implements a federated learning framework for training models acros
 To run the federated learning pipeline from the command line, use the following command:
 
 ```bash
-python main.py --wandb_key <YOUR_WANDB_KEY> --epochs 1000 --num_users 50
+python src/federated.py --wandb_key <YOUR_WANDB_KEY> --epochs 1000 --num_users 50
 ```
 
 You can pass various arguments to customize the training (see the [Arguments](#arguments) section below).
