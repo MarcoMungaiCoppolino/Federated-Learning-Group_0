@@ -1,6 +1,6 @@
 # Federated Learning Project
 
-This project implements a federated learning framework for training models across multiple clients in a distributed and secure manner. The code leverages [Weights and Biases (WandB)](https://wandb.ai/) for logging, and allows customization of various hyperparameters via command-line arguments or notebook configuration. The project report can be found in the repository: [Novel_Clients_Generalization_in_Federated_Learning_with_Hypernetworks_and_Local_Memorization.pdf](Novel_Clients_Generalization_in_Federated_Learning_with_Hypernetworks_and_Local_Memorization.pdf)
+This project implements a federated learning framework for training models across multiple clients in a distributed and secure manner. The code leverages [Weights and Biases (WandB)](https://wandb.ai/) for logging, and allows customization of various hyperparameters via command-line arguments or notebook configuration. <br><br> The project report can be found in the repository: [Novel_Clients_Generalization_in_Federated_Learning_with_Hypernetworks_and_Local_Memorization.pdf](Novel_Clients_Generalization_in_Federated_Learning_with_Hypernetworks_and_Local_Memorization.pdf)
 
 ## Table of Contents
 - [Installation](#installation)
